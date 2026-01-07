@@ -9,6 +9,7 @@ Aseprite animation player for Ebitengine based on the [askeladdk/aseprite](https
 3. AsePlayer supports three Animation Directions: `Forward`, `Ping-pong`, and `Reverse`.
   - <img width="336" height="288" alt="tag-properties" src="https://github.com/user-attachments/assets/1d568d23-a745-4526-b152-0d7ec62f8414" />
 4. [Frame durations](https://www.aseprite.org/docs/frame-duration) are supported. The animation plays according to these durations.
+5. One-time playback is not currently supported. Animations will always play in an infinite loop.
 
 ---
 
