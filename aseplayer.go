@@ -123,7 +123,7 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 			Durations: durations,
 		}
 	}
-	ap.SetAnim(ase.Tags[0].Name)
+	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
 	return
 }
 
