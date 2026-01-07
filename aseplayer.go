@@ -47,7 +47,7 @@ func (ap *AnimPlayer) SetAnim(name string) {
 	ap.ElapsedTime = 0
 }
 
-// Animation for AnimationPlayer
+// Animation for AnimPlayer
 type Animation struct {
 	Name      string          // Name of the aimation
 	Frames    []*ebiten.Image // Animation frames
