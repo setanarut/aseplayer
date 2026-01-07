@@ -40,6 +40,16 @@ func (ap *AnimPlayer) Update() {
 	ap.CurrentFrame = a.Frames[ap.Index]
 }
 
+// SetAnim sets the animation state and resets to the first frame.
+//
+// Do not call this in every Update() frame. Set it only once in the Enter/Exit events,
+// otherwise, the animation will always reset to the first index.
+func (ap *AnimPlayer) SetAnim(name string) {
+	ap.CurrentAnimation = ap.Animations[name]
+	ap.Index = 0
+	ap.ElapsedTime = 0
+}
+
 // CheckAndSetAnim changes the animation and resets to the first frame if the animation state is not the current state.
 //
 // It can be called on every Update() frame.
@@ -51,16 +61,6 @@ func (ap *AnimPlayer) CheckAndSetAnim(name string) {
 		ap.Index = 0
 		ap.ElapsedTime = 0
 	}
-}
-
-// SetAndResetAnim sets the animation state and resets to the first frame.
-//
-// Do not call this in every Update() frame. Set it only once in the Enter/Exit events,
-// otherwise, the animation will always reset to the first index.
-func (ap *AnimPlayer) SetAnim(name string) {
-	ap.CurrentAnimation = ap.Animations[name]
-	ap.Index = 0
-	ap.ElapsedTime = 0
 }
 
 // Animation for AnimPlayer
