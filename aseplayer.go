@@ -85,11 +85,9 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 
 		switch tag.LoopDirection {
 		case aseprite.PingPong:
-			if tag.LoopDirection == aseprite.PingPong {
-				for i := len(frames) - 2; i > 0; i-- {
-					frames = append(frames, frames[i])
-					durations = append(durations, durations[i])
-				}
+			for i := len(frames) - 2; i > 0; i-- {
+				frames = append(frames, frames[i])
+				durations = append(durations, durations[i])
 			}
 		case aseprite.Reverse:
 			slices.Reverse(frames)
