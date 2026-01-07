@@ -1,4 +1,4 @@
-module github.com/setanarut/aseprite
+module github.com/setanarut/aseplayer
 
 go 1.25
 
