@@ -1,7 +1,7 @@
 # aseplayer
 
 
-Aseprite animation player for Ebitengine based on the [askeladdk/aseprite](https://github.com/askeladdk/aseprite)
+Aseprite animation player for Ebitengine (based on the [askeladdk/aseprite](https://github.com/askeladdk/aseprite)). 
 
 1. Layers are flattened, blending modes are applied, and frames are arranged on a single texture atlas. Invisible and reference layers are ignored.
 2. Each [Tag](https://www.aseprite.org/docs/tags) is imported as an `Animation{}` struct and is ready to play.
