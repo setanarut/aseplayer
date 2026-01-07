@@ -40,7 +40,23 @@ func (ap *AnimPlayer) Update() {
 	ap.CurrentFrame = a.Frames[ap.Index]
 }
 
-// SetAnim sets the animation state and resets to the first frame.
+// CheckAndSetAnim changes the animation and resets to the first frame if the animation state is not the current state.
+//
+// It can be called on every Update() frame.
+//
+// For optimization, it is recommended to use SeAnim() only during state transitions.
+func (ap *AnimPlayer) CheckAndSetAnim(name string) {
+	if name != ap.CurrentAnimation.Name {
+		ap.CurrentAnimation = ap.Animations[name]
+		ap.Index = 0
+		ap.ElapsedTime = 0
+	}
+}
+
+// SetAndResetAnim sets the animation state and resets to the first frame.
+//
+// Do not call this in every Update() frame. Set it only once in the Enter/Exit events,
+// otherwise, the animation will always reset to the first index.
 func (ap *AnimPlayer) SetAnim(name string) {
 	ap.CurrentAnimation = ap.Animations[name]
 	ap.Index = 0
@@ -54,12 +70,19 @@ type Animation struct {
 	Durations []time.Duration // Frame durations (milliseconds)
 }
 
+// The first Aseprite tag will be assigned as CurrentAnimation. You can then set it with SetAnim()
+//
+// Do not read .ase files that do not have a tag.
 func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
 	ase := newAseFromFileSystem(fs, asePath)
 	ap := fromAseprite(ase)
 	ase = nil
 	return ap
 }
+
+// The first Aseprite tag will be assigned as CurrentAnimation. You can then set it with SetAnim()
+//
+// Do not read .ase files that do not have a tag.
 func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
 	ase := newAseFromFile(asePath)
 	ap := fromAseprite(ase)
