@@ -2,7 +2,6 @@ package aseplayer
 
 import (
 	"io/fs"
-	"log"
 	"os"
 	"slices"
 	"time"
@@ -91,6 +90,11 @@ func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
 }
 
 func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
+
+	if len(ase.Tags) == 0 {
+		panic("The Aseprite file does not have a tag.")
+	}
+
 	ap = &AnimPlayer{
 		Animations: make(map[string]*Animation),
 		Atlas:      ebiten.NewImageFromImage(ase.Image),
@@ -124,18 +128,19 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 		}
 	}
 	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
+	ap.CurrentFrame = ap.CurrentAnimation.Frames[0]
 	return
 }
 
 func newAseFromFile(path string) (ase *aseprite.Aseprite) {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer f.Close()
 	ase, err = aseprite.Read(f)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return
 }
@@ -143,12 +148,12 @@ func newAseFromFile(path string) (ase *aseprite.Aseprite) {
 func newAseFromFileSystem(fs fs.FS, path string) (ase *aseprite.Aseprite) {
 	file, err := fs.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer file.Close()
 	ase, err = aseprite.Read(file)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return
 }

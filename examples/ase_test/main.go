@@ -1,7 +1,7 @@
 package main
 
 import (
-	"image/color"
+	"fmt"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -9,13 +9,7 @@ import (
 	"github.com/setanarut/aseplayer"
 )
 
-var (
-	ani *aseplayer.AnimPlayer
-)
-
 func main() {
-
-	ani = aseplayer.NewAnimPlayerFromAsepriteFile("test.ase")
 
 	g := &Game{}
 	g.Init()
@@ -28,36 +22,36 @@ func main() {
 }
 
 type Game struct {
-	w, h float64
+	animPlayer *aseplayer.AnimPlayer
+	w, h       float64
 }
 
 func (g *Game) Init() {
-	ebiten.SetScreenClearedEveryFrame(false)
-
-	g.w, g.h = 500, 500
+	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("test.ase")
+	fmt.Println(g.animPlayer.CurrentFrame.Bounds())
+	g.w, g.h = 200, 200
 }
 
 func (g *Game) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
-		ani.SetAnim("pingpong")
+		g.animPlayer.SetAnim("pingpong")
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		ani.SetAnim("reverse")
+		g.animPlayer.SetAnim("reverse")
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyW) {
-		ani.SetAnim("forward")
+		g.animPlayer.SetAnim("forward")
 	}
-	ani.Update()
+	g.animPlayer.Update()
 	return nil
 }
 
 func (g *Game) Draw(s *ebiten.Image) {
-	s.Fill(color.Gray{100})
-	s.DrawImage(ani.CurrentFrame, nil)
+	s.DrawImage(g.animPlayer.CurrentFrame, nil)
 }
 
 func (g *Game) Layout(w, h int) (int, int) {
-	return 500, 500
+	return 200, 200
 }
 
 func (g *Game) LayoutF(w, h float64) (float64, float64) {
