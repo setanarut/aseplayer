@@ -6,8 +6,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/askeladdk/aseprite"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/setanarut/aseprite"
 )
 
 // AnimPlayer plays and manages Aseprite tag animations.
