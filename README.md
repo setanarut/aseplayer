@@ -38,7 +38,7 @@ AsePlayer supports three Animation Directions: `Forward`, `Ping-pong`, and `Reve
 <img width="336" height="288" alt="tag-properties" src="https://github.com/user-attachments/assets/1d568d23-a745-4526-b152-0d7ec62f8414" />
 
 > [!NOTE]  
-> For **Ping-Pong** and **Reverse** playback, the `Frames []*ebiten.Image` slice is specifically manipulated. For **Ping-Pong**, the number of frames will be greater than the Aseprite range. `[0 1 2] -> [0 1 2 3 2 1]`. **Reverse** is an reversed `[]*ebiten.Image`.
+> For **Ping-Pong** and **Reverse** playback, the `Frames []*ebiten.Image` slice is specifically manipulated. For **Ping-Pong**, the number of frames will be greater than the Aseprite range. `[0 1 2 3] -> [0 1 2 3 2 1]`. **Reverse** is an reversed `[]*ebiten.Image`.
 
 ```go
 case aseprite.PingPong:
