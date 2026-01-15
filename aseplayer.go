@@ -12,13 +12,22 @@ import (
 
 // AnimPlayer plays and manages Aseprite tag animations.
 type AnimPlayer struct {
-	CurrentFrame     *ebiten.Image
+	// The frame of the animation currently being played
+	CurrentFrame *ebiten.Image
+	// The animation currently being played
 	CurrentAnimation *Animation
-	Animations       map[string]*Animation
-	Atlas            *ebiten.Image
-	Paused           bool
-	ElapsedTime      time.Duration
-	Index            int
+	// Animations accessible by their Aseprite tag names
+	Animations map[string]*Animation
+	// Sprite atlas containing all animations
+	Atlas *ebiten.Image
+	// If true, the animation is paused
+	Paused bool
+	// Time elapsed since the current animation started
+	ElapsedTime time.Duration
+	// Current frame index of the playing animation
+	Index int
+	// isJustEnded returns true only on the frame when the animation just ended
+	isJustEnded bool
 }
 
 const fixedDelta = time.Second / 60
@@ -27,12 +36,14 @@ func (ap *AnimPlayer) Update() {
 	if ap.Paused {
 		return
 	}
+	ap.isJustEnded = false // Her update'te sıfırla
 	a := ap.CurrentAnimation
 	ap.ElapsedTime += fixedDelta
 	if ap.ElapsedTime >= a.Durations[ap.Index] {
 		ap.ElapsedTime = 0
 		ap.Index++
 		if ap.Index >= len(a.Frames) {
+			ap.isJustEnded = true // ← Animasyon tam bitti
 			ap.Index = 0
 		}
 	}
@@ -43,10 +54,17 @@ func (ap *AnimPlayer) Update() {
 //
 // Do not call this in every Update() frame. Set it only once in the Enter/Exit events,
 // otherwise, the animation will always reset to the first index.
-func (ap *AnimPlayer) SetAnim(name string) {
-	ap.CurrentAnimation = ap.Animations[name]
+func (ap *AnimPlayer) SetAnim(tag string) {
+	ap.CurrentAnimation = ap.Animations[tag]
 	ap.Index = 0
 	ap.ElapsedTime = 0
+}
+
+// IsJustEnded returns true only on the frame when the animation just completed its last frame
+//
+// Use this for triggering events, transitions, or one-time effects.
+func (ap *AnimPlayer) IsJustEnded() bool {
+	return ap.isJustEnded
 }
 
 // CheckAndSetAnim changes the animation and resets to the first frame if the animation state is not the current state.
@@ -54,9 +72,9 @@ func (ap *AnimPlayer) SetAnim(name string) {
 // It can be called on every Update() frame.
 //
 // For optimization, it is recommended to use SeAnim() only during state transitions.
-func (ap *AnimPlayer) CheckAndSetAnim(name string) {
-	if name != ap.CurrentAnimation.Name {
-		ap.CurrentAnimation = ap.Animations[name]
+func (ap *AnimPlayer) CheckAndSetAnim(tag string) {
+	if tag != ap.CurrentAnimation.Tag {
+		ap.CurrentAnimation = ap.Animations[tag]
 		ap.Index = 0
 		ap.ElapsedTime = 0
 	}
@@ -64,9 +82,12 @@ func (ap *AnimPlayer) CheckAndSetAnim(name string) {
 
 // Animation for AnimPlayer
 type Animation struct {
-	Name      string          // Name of the aimation
-	Frames    []*ebiten.Image // Animation frames
-	Durations []time.Duration // Frame durations (milliseconds)
+	// The animation tag name is identical to the Aseprite file
+	Tag string
+	// Animation frames
+	Frames []*ebiten.Image
+	// Frame durations retrieved from the Aseprite file
+	Durations []time.Duration
 }
 
 // The first Aseprite tag will be assigned as CurrentAnimation. You can then set it with SetAnim()
@@ -122,7 +143,7 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 		}
 
 		ap.Animations[tag.Name] = &Animation{
-			Name:      tag.Name,
+			Tag:       tag.Name,
 			Frames:    frames,
 			Durations: durations,
 		}

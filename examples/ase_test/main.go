@@ -28,11 +28,13 @@ type Game struct {
 
 func (g *Game) Init() {
 	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("test.ase")
-	fmt.Println(g.animPlayer.CurrentFrame.Bounds())
 	g.w, g.h = 200, 200
 }
 
 func (g *Game) Update() error {
+	if g.animPlayer.IsJustEnded() {
+		fmt.Println(g.animPlayer.CurrentAnimation.Tag + " just ended")
+	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
 		g.animPlayer.SetAnim("pingpong")
 	}
