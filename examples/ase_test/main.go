@@ -15,6 +15,7 @@ func main() {
 	g.Init()
 
 	ebiten.SetWindowSize(int(g.w), int(g.h))
+	ebiten.SetWindowTitle("500 ms test")
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

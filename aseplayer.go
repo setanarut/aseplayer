@@ -22,8 +22,8 @@ type AnimPlayer struct {
 	Atlas *ebiten.Image
 	// If true, the animation is paused
 	Paused bool
-	// Time elapsed since the current animation started
-	ElapsedTime time.Duration
+	// Time elapsed since the current frame started displaying
+	FrameElapsedTime time.Duration
 	// Current frame index of the playing animation
 	Index int
 	// isJustEnded returns true only on the frame when the animation just ended
@@ -38,9 +38,9 @@ func (ap *AnimPlayer) Update() {
 	}
 	ap.isJustEnded = false // Her update'te sıfırla
 	a := ap.CurrentAnimation
-	ap.ElapsedTime += fixedDelta
-	if ap.ElapsedTime >= a.Durations[ap.Index] {
-		ap.ElapsedTime = 0
+	ap.FrameElapsedTime += fixedDelta
+	if ap.FrameElapsedTime >= a.Durations[ap.Index] {
+		ap.FrameElapsedTime = 0
 		ap.Index++
 		if ap.Index >= len(a.Frames) {
 			ap.isJustEnded = true // ← Animasyon tam bitti
@@ -57,7 +57,7 @@ func (ap *AnimPlayer) Update() {
 func (ap *AnimPlayer) SetAnim(tag string) {
 	ap.CurrentAnimation = ap.Animations[tag]
 	ap.Index = 0
-	ap.ElapsedTime = 0
+	ap.FrameElapsedTime = 0
 }
 
 // IsJustEnded returns true only on the frame when the animation just completed its last frame
@@ -76,7 +76,7 @@ func (ap *AnimPlayer) CheckAndSetAnim(tag string) {
 	if tag != ap.CurrentAnimation.Tag {
 		ap.CurrentAnimation = ap.Animations[tag]
 		ap.Index = 0
-		ap.ElapsedTime = 0
+		ap.FrameElapsedTime = 0
 	}
 }
 
