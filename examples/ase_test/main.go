@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/setanarut/aseplayer"
 )
@@ -29,34 +29,47 @@ type Game struct {
 
 func (g *Game) Init() {
 	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("test.ase")
-	g.w, g.h = 200, 200
+	g.w, g.h = 512, 512
 }
 
 func (g *Game) Update() error {
-	if g.animPlayer.IsJustEnded() {
-		fmt.Println(g.animPlayer.CurrentAnimation.Tag + " just ended")
+
+	if inpututil.IsKeyJustPressed(ebiten.Key1) {
+		g.animPlayer.Play("forward")
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
-		g.animPlayer.SetAnim("pingpong")
+	if inpututil.IsKeyJustPressed(ebiten.Key2) {
+		g.animPlayer.Play("reverse")
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
-		g.animPlayer.SetAnim("reverse")
+	if inpututil.IsKeyJustPressed(ebiten.Key3) {
+		g.animPlayer.Play("repeat_2")
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyW) {
-		g.animPlayer.SetAnim("forward")
+	if inpututil.IsKeyJustPressed(ebiten.Key4) {
+		g.animPlayer.Play("ping_pong")
 	}
-	g.animPlayer.Update()
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		g.animPlayer.Rewind()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
+		g.animPlayer.Animations["forward"].Repeat = 1
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		g.animPlayer.Paused = !g.animPlayer.Paused
+	}
+
+	g.animPlayer.Update(aseplayer.Delta)
+
 	return nil
 }
 
 func (g *Game) Draw(s *ebiten.Image) {
-	s.DrawImage(g.animPlayer.CurrentFrame, nil)
+	ebitenutil.DebugPrint(s, "Play tags\nKey1 = forward\nkey2 = reverse\nKey3 = repeat_2\nKey4 = ping_pong\n")
+	ebitenutil.DebugPrintAt(s, g.animPlayer.String(), 192, 0)
+
+	d := ebiten.DrawImageOptions{}
+	d.GeoM.Translate(192, 192)
+	s.DrawImage(g.animPlayer.CurrentFrame, &d)
 }
 
 func (g *Game) Layout(w, h int) (int, int) {
-	return 200, 200
-}
-
-func (g *Game) LayoutF(w, h float64) (float64, float64) {
-	return g.w, g.h
+	return 512, 512
 }

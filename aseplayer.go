@@ -1,6 +1,7 @@
 package aseplayer
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"slices"
@@ -10,89 +11,116 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+const Delta = time.Second / 60
+
 // AnimPlayer plays and manages Aseprite tag animations.
 type AnimPlayer struct {
+
 	// The frame of the animation currently being played
 	CurrentFrame *ebiten.Image
+
 	// The animation currently being played
 	CurrentAnimation *Animation
+
 	// Animations accessible by their Aseprite tag names
 	Animations map[string]*Animation
+
 	// Sprite atlas containing all animations
 	Atlas *ebiten.Image
+
 	// If true, the animation is paused
 	Paused bool
-	// Time elapsed since the current frame started displaying
-	FrameElapsedTime time.Duration
-	// Current frame index of the playing animation
-	Index int
-	// isJustEnded returns true only on the frame when the animation just ended
-	isJustEnded bool
+
+	frameElapsedTime time.Duration
+	frameIndex       int
+	isEnded          bool
+	repeatCount      uint16
 }
 
-const fixedDelta = time.Second / 60
-
-func (ap *AnimPlayer) Update() {
-	if ap.Paused {
+func (a *AnimPlayer) Update(dt time.Duration) {
+	if a.Paused || a.isEnded {
 		return
 	}
-	ap.isJustEnded = false // Her update'te sıfırla
-	a := ap.CurrentAnimation
-	ap.FrameElapsedTime += fixedDelta
-	if ap.FrameElapsedTime >= a.Durations[ap.Index] {
-		ap.FrameElapsedTime = 0
-		ap.Index++
-		if ap.Index >= len(a.Frames) {
-			ap.isJustEnded = true // ← Animasyon tam bitti
-			ap.Index = 0
+	activeAnim := a.CurrentAnimation
+	a.frameElapsedTime += dt
+	if a.frameElapsedTime >= activeAnim.Durations[a.frameIndex] {
+		a.frameElapsedTime = 0
+		a.frameIndex++
+		if a.frameIndex >= len(activeAnim.Frames) {
+			if activeAnim.Repeat == 0 {
+				a.frameIndex = 0
+			} else {
+				a.repeatCount++
+				if a.repeatCount >= activeAnim.Repeat {
+					a.isEnded = true
+					a.frameIndex = len(activeAnim.Frames) - 1
+					a.CurrentFrame = activeAnim.Frames[a.frameIndex]
+					return
+				}
+				a.frameIndex = 0
+			}
 		}
 	}
-	ap.CurrentFrame = a.Frames[ap.Index]
+	a.CurrentFrame = activeAnim.Frames[a.frameIndex]
 }
 
-// SetAnim sets the animation state and resets to the first frame.
-//
-// Do not call this in every Update() frame. Set it only once in the Enter/Exit events,
-// otherwise, the animation will always reset to the first index.
-func (ap *AnimPlayer) SetAnim(tag string) {
-	ap.CurrentAnimation = ap.Animations[tag]
-	ap.Index = 0
-	ap.FrameElapsedTime = 0
+// If Animation.Repeat is not zero, it returns true when the animation ends. If it is zero, it is always false.
+func (a *AnimPlayer) IsEnded() bool {
+	return a.isEnded
 }
 
-// IsJustEnded returns true only on the frame when the animation just completed its last frame
-//
-// Use this for triggering events, transitions, or one-time effects.
-func (ap *AnimPlayer) IsJustEnded() bool {
-	return ap.isJustEnded
+// Play rewinds and plays the animation.
+func (a *AnimPlayer) Play(tag string) {
+	a.CurrentAnimation = a.Animations[tag]
+	a.CurrentFrame = a.CurrentAnimation.Frames[0]
+	a.Rewind()
 }
 
-// CheckAndSetAnim changes the animation and resets to the first frame if the animation state is not the current state.
-//
-// It can be called on every Update() frame.
-//
-// For optimization, it is recommended to use SeAnim() only during state transitions.
-func (ap *AnimPlayer) CheckAndSetAnim(tag string) {
-	if tag != ap.CurrentAnimation.Tag {
-		ap.CurrentAnimation = ap.Animations[tag]
-		ap.Index = 0
-		ap.FrameElapsedTime = 0
+// PlayIfNotCurrent rewinds and plays the animation with the given tag if it's not already playing
+func (a *AnimPlayer) PlayIfNotCurrent(tag string) {
+	if tag != a.CurrentAnimation.Tag {
+		a.Play(tag)
 	}
+}
+
+// Rewinds animation
+func (a *AnimPlayer) Rewind() {
+	a.frameIndex = 0
+	a.frameElapsedTime = 0
+	a.CurrentFrame = a.CurrentAnimation.Frames[0]
+	a.isEnded = false
+	a.repeatCount = 0
+}
+
+func (a *AnimPlayer) String() string {
+	return fmt.Sprintf(debugFormat, a.CurrentAnimation.Tag,
+		a.repeatCount,
+		a.IsEnded(),
+		a.frameIndex,
+		a.frameElapsedTime,
+		a.Paused)
 }
 
 // Animation for AnimPlayer
 type Animation struct {
+
 	// The animation tag name is identical to the Aseprite file
 	Tag string
+
 	// Animation frames
 	Frames []*ebiten.Image
+
 	// Frame durations retrieved from the Aseprite file
 	Durations []time.Duration
+
+	// Repeat specifies how many times the animation should loop.
+	// A value of 0 means infinite looping.
+	Repeat uint16
 }
 
-// The first Aseprite tag will be assigned as CurrentAnimation. You can then set it with SetAnim()
+// The first Aseprite tag will be assigned as CurrentAnimation.
 //
-// Do not read .ase files that do not have a tag.
+// Do not read .ase/.aseprite files that do not have a tag.
 func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
 	ase := newAseFromFileSystem(fs, asePath)
 	ap := fromAseprite(ase)
@@ -100,9 +128,9 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
 	return ap
 }
 
-// The first Aseprite tag will be assigned as CurrentAnimation. You can then set it with SetAnim()
+// The first Aseprite tag will be assigned as CurrentAnimation.
 //
-// Do not read .ase files that do not have a tag.
+// Do not read .ase/.aseprite files that do not have a tag.
 func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
 	ase := newAseFromFile(asePath)
 	ap := fromAseprite(ase)
@@ -146,6 +174,7 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 			Tag:       tag.Name,
 			Frames:    frames,
 			Durations: durations,
+			Repeat:    tag.Repeat,
 		}
 	}
 	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
