@@ -2,7 +2,10 @@ module github.com/setanarut/aseplayer
 
 go 1.25
 
-require github.com/hajimehoshi/ebiten/v2 v2.9.7
+require (
+	github.com/hajimehoshi/ebiten/v2 v2.9.7
+	golang.org/x/image v0.31.0
+)
 
 require (
 	github.com/askeladdk/aseprite v0.0.6
@@ -14,6 +17,4 @@ require (
 	golang.org/x/sys v0.36.0 // indirect
 )
 
-retract (
-    [v1.1.0, v1.2.0] // Mistake discovered.
-)
+retract [v1.1.0, v1.2.0] // Mistake discovered.
