@@ -7,8 +7,8 @@ Aseprite animation player for Ebitengine.
 There are two methods available to read Aseprite files.
 
 ```Go
-animPlayer := aseplayer.NewAnimPlayerFromAsepriteFile("player.ase")
-animPlayer := aseplayer.NewAnimPlayerFromAsepriteFileSystem(fsys, "player.ase")
+func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer
+func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bool) *AnimPlayer
 ```
 
 > [!NOTE]  
@@ -16,7 +16,7 @@ animPlayer := aseplayer.NewAnimPlayerFromAsepriteFileSystem(fsys, "player.ase")
 
 ## Tags
 
-Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Animation{}` struct and is ready to play. Each Tag's frames are stored as a []*ebiten.Image. 
+Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Animation{}` struct and is ready to play. Each Tag's frames are stored as a []*ebiten.Image.
 
 <img width="655" height="155" alt="Tags" src="https://github.com/user-attachments/assets/be21a4af-451f-4e02-b457-88d1d29123ab" />
 
@@ -40,6 +40,14 @@ AsePlayer supports three Animation Directions: `Forward`, `Reverse`, and `Ping-p
 ```Go
 // Override.
 g.animPlayer.Animations["turn"].Repeat = 1
+```
+
+## Slices
+
+With the `smartSlice` argument, if there is a *Slice* with the same name as the *Tag*, the animation frames is trimmed accordingly. The pivot point of the slice is also taken as `Animation.PivotX` and `Animation.PivotY` See [./examples/slice](./examples/slice/)
+
+```Go
+func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer
 ```
 
 ## Frame Durations
