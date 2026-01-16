@@ -2,6 +2,7 @@ package aseplayer
 
 import (
 	"fmt"
+	"image"
 	"io/fs"
 	"os"
 	"slices"
@@ -12,6 +13,10 @@ import (
 )
 
 const Delta = time.Second / 60
+
+type subImager interface {
+	SubImage(image.Rectangle) image.Image
+}
 
 // AnimPlayer plays and manages Aseprite tag animations.
 type AnimPlayer struct {
@@ -24,9 +29,6 @@ type AnimPlayer struct {
 
 	// Animations accessible by their Aseprite tag names
 	Animations map[string]*Animation
-
-	// Sprite atlas containing all animations
-	Atlas *ebiten.Image
 
 	// If true, the animation is paused
 	Paused bool
@@ -116,29 +118,52 @@ type Animation struct {
 	// Repeat specifies how many times the animation should loop.
 	// A value of 0 means infinite looping.
 	Repeat uint16
+
+	PivotX float64
+	PivotY float64
 }
 
-// The first Aseprite tag will be assigned as CurrentAnimation.
+// NewAnimPlayerFromAsepriteFileSystem creates an AnimPlayer from an Aseprite file.
 //
-// Do not read .ase/.aseprite files that do not have a tag.
-func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
+// The first Aseprite tag is automatically set as the current animation.
+//
+// When smartSlice is true, the Smart Slice algorithm performs the following:
+//   - Finds a Slice whose name matches the Timeline tag name
+//   - Crops the image to the Slice's bounds
+//   - Extracts the Pivot information from the Slice and sets Animation.PivotX and Animation.PivotY
+//
+// When smartSlice is false, the image size matches the Aseprite canvas size,
+// and Animation.PivotX and Animation.PivotY default to the center of the image.
+//
+// The Aseprite file must contain at least one tag, otherwise an error will occur.
+func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bool) *AnimPlayer {
 	ase := newAseFromFileSystem(fs, asePath)
-	ap := fromAseprite(ase)
+	ap := fromAseprite(ase, smartSlice)
 	ase = nil
 	return ap
 }
 
-// The first Aseprite tag will be assigned as CurrentAnimation.
+// NewAnimPlayerFromAsepriteFile creates an AnimPlayer from an Aseprite file.
 //
-// Do not read .ase/.aseprite files that do not have a tag.
-func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
+// The first Aseprite tag is automatically set as the current animation.
+//
+// When smartSlice is true, the Smart Slice algorithm performs the following:
+//   - Finds a Slice whose name matches the Timeline tag name
+//   - Crops the image to the Slice's bounds
+//   - Extracts the Pivot information from the Slice and sets Animation.PivotX and Animation.PivotY
+//
+// When smartSlice is false, the image size matches the Aseprite canvas size,
+// and Animation.PivotX and Animation.PivotY default to the center of the image.
+//
+// The Aseprite file must contain at least one tag, otherwise an error will occur.
+func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer {
 	ase := newAseFromFile(asePath)
-	ap := fromAseprite(ase)
+	ap := fromAseprite(ase, smartSlice)
 	ase = nil
 	return ap
 }
 
-func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
+func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
 
 	if len(ase.Tags) == 0 {
 		panic("The Aseprite file does not have a tag.")
@@ -146,17 +171,36 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 
 	ap = &AnimPlayer{
 		Animations: make(map[string]*Animation),
-		Atlas:      ebiten.NewImageFromImage(ase.Image),
+		// Atlas:      ebiten.NewImageFromImage(ase.Image),
 	}
+
+	var sliceIndex int
+
 	for _, tag := range ase.Tags {
 		frameCount := tag.Hi - tag.Lo + 1
 		frames := make([]*ebiten.Image, 0, frameCount)
 		durations := make([]time.Duration, 0, frameCount)
 
-		// kare ve süreleri çek
+		if smartSliceEnabled {
+			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseprite.Slice) bool {
+				return e.Name == tag.Name
+			})
+		}
+
 		for i := tag.Lo; i <= tag.Hi; i++ {
+
+			var frameImage image.Image
+			frameBounds := ase.Frames[i].Bounds
 			durations = append(durations, ase.Frames[i].Duration)
-			frames = append(frames, ap.Atlas.SubImage(ase.Frames[i].Bounds).(*ebiten.Image))
+
+			if smartSliceEnabled {
+				if sliceIndex != -1 {
+					frameBounds = ase.Slices[sliceIndex].Bounds.Add(frameBounds.Min)
+				}
+			}
+
+			frameImage = ase.Image.(subImager).SubImage(frameBounds)
+			frames = append(frames, ebiten.NewImageFromImage(frameImage))
 		}
 
 		switch tag.LoopDirection {
@@ -176,6 +220,20 @@ func fromAseprite(ase *aseprite.Aseprite) (ap *AnimPlayer) {
 			Durations: durations,
 			Repeat:    tag.Repeat,
 		}
+
+		if smartSliceEnabled {
+			if sliceIndex != -1 {
+				ap.Animations[tag.Name].PivotX = float64(ase.Slices[sliceIndex].Pivot.X)
+				ap.Animations[tag.Name].PivotY = float64(ase.Slices[sliceIndex].Pivot.Y)
+
+			} else {
+				r := ap.Animations[tag.Name].Frames[0].Bounds()
+				center := r.Min.Add(r.Max).Div(2)
+				ap.Animations[tag.Name].PivotX = float64(center.X)
+				ap.Animations[tag.Name].PivotY = float64(center.Y)
+			}
+		}
+
 	}
 	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
 	ap.CurrentFrame = ap.CurrentAnimation.Frames[0]

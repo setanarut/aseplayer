@@ -1,12 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/setanarut/aseplayer"
+	"golang.org/x/image/colornames"
 )
 
 func main() {
@@ -15,7 +19,7 @@ func main() {
 	g.Init()
 
 	ebiten.SetWindowSize(int(g.w), int(g.h))
-	ebiten.SetWindowTitle("500 ms test")
+	ebiten.SetWindowTitle("Slice bounds test")
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
@@ -28,27 +32,21 @@ type Game struct {
 }
 
 func (g *Game) Init() {
-	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("test.ase")
+	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("slice.ase", true)
 	g.w, g.h = 512, 512
 }
 
 func (g *Game) Update() error {
 
 	if inpututil.IsKeyJustPressed(ebiten.Key1) {
-		g.animPlayer.Play("forward")
+		g.animPlayer.Play("no_slice")
 	}
 	if inpututil.IsKeyJustPressed(ebiten.Key2) {
-		g.animPlayer.Play("reverse")
+		g.animPlayer.Play("slice_test")
+		fmt.Println(g.animPlayer.CurrentAnimation.PivotX)
+		fmt.Println(g.animPlayer.CurrentAnimation.PivotY)
 	}
-	if inpututil.IsKeyJustPressed(ebiten.Key3) {
-		g.animPlayer.Play("repeat_2")
-	}
-	if inpututil.IsKeyJustPressed(ebiten.Key4) {
-		g.animPlayer.Play("ping_pong")
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
-		g.animPlayer.Rewind()
-	}
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
 		g.animPlayer.Animations["forward"].Repeat = 1
 	}
@@ -62,12 +60,27 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(s *ebiten.Image) {
-	ebitenutil.DebugPrint(s, "Play tags\nKey1 = forward\nkey2 = reverse\nKey3 = repeat_2\nKey4 = ping_pong\n")
+	s.Fill(color.Gray{50})
+	ebitenutil.DebugPrint(s, "Play tags\nKey1, Key2")
 	ebitenutil.DebugPrintAt(s, g.animPlayer.String(), 192, 0)
 
+	// draw animPlayer
 	d := ebiten.DrawImageOptions{}
-	d.GeoM.Translate(192, 192)
+	d.GeoM.Translate(-g.animPlayer.CurrentAnimation.PivotX, -g.animPlayer.CurrentAnimation.PivotY)
+	d.GeoM.Translate(256, 256)
 	s.DrawImage(g.animPlayer.CurrentFrame, &d)
+
+	// draw animation bounds
+	r := g.animPlayer.CurrentFrame.Bounds()
+	x, y := d.GeoM.Apply(float64(r.Min.X), float64(r.Min.Y))
+	vector.StrokeRect(s, float32(x), float32(y), float32(r.Dx()), float32(r.Dy()), 1, colornames.Yellow, false)
+
+	// draw animation pivot
+	vector.FillCircle(s,
+		float32(256),
+		float32(256),
+		3, colornames.White, false,
+	)
 }
 
 func (g *Game) Layout(w, h int) (int, int) {
