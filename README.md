@@ -50,6 +50,8 @@ With the `smartSlice` argument, if there is a *Slice* with the same name as the 
 func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer
 ```
 
+<img width="818" height="118" alt="slices" src="https://github.com/user-attachments/assets/be5f0c0c-2456-4d96-a284-7367da784eb3" />
+
 ## Frame Durations
 
 [Frame durations](https://www.aseprite.org/docs/frame-duration) are supported. The animation plays according to these durations. 
