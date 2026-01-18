@@ -7,8 +7,13 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"slices"
 	"time"
 )
+
+type subImager interface {
+	SubImage(image.Rectangle) image.Image
+}
 
 // LoopDirection enumerates all loop animation directions.
 type LoopDirection uint8
@@ -82,6 +87,7 @@ type SliceFrame struct {
 
 // Aseprite holds the results of a parsed Aseprite image file.
 type Aseprite struct {
+
 	// Image contains all frame images in a single image.
 	// Frame bounds specify where the frame images are located.
 	image.Image
@@ -99,7 +105,25 @@ type Aseprite struct {
 	LayerData [][]byte
 }
 
-func (spr *Aseprite) readFrom(r io.Reader) error {
+// GetFrameImage returns the image for the specified frame index.
+func (a *Aseprite) GetFrameImage(frameIndex uint16) image.Image {
+	return a.Image.(subImager).SubImage(a.Frames[frameIndex].Bounds)
+}
+
+// GetSliceImage returns the image for the specified slice name and frame index.
+func (a *Aseprite) GetSliceImage(sliceName string, frameIndex uint16) image.Image {
+	sliceIndex := slices.IndexFunc(a.Slices, func(e Slice) bool {
+		return e.Name == sliceName
+	})
+	if sliceIndex != -1 {
+		rect := a.Slices[sliceIndex].Frames[frameIndex].Bounds.Add(a.Frames[frameIndex].Bounds.Min)
+		return a.Image.(subImager).SubImage(rect)
+	} else {
+		return nil
+	}
+}
+
+func (a *Aseprite) readFrom(r io.Reader) error {
 	var f file
 
 	if _, err := f.ReadFrom(r); err != nil {
@@ -117,11 +141,11 @@ func (spr *Aseprite) readFrom(r io.Reader) error {
 	}
 
 	var framesr []image.Rectangle
-	spr.Image, framesr = f.buildAtlas()
+	a.Image, framesr = f.buildAtlas()
 	userdata := f.buildUserData()
-	spr.Frames, userdata = f.buildFrames(framesr, userdata)
-	spr.LayerData = f.buildLayerData(userdata)
-	spr.Tags = f.buildTags()
-	spr.Slices = f.buildSlices()
+	a.Frames, userdata = f.buildFrames(framesr, userdata)
+	a.LayerData = f.buildLayerData(userdata)
+	a.Tags = f.buildTags()
+	a.Slices = f.buildSlices()
 	return nil
 }

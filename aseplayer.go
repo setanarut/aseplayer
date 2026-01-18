@@ -213,7 +213,6 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap
 		frameIdx := 0
 		for i := tag.Lo; i <= tag.Hi; i++ {
 			frames = append(frames, &Frame{})
-			var atlasSubImage image.Image
 			frameBounds := ase.Frames[i].Bounds
 
 			if smartSliceEnabled {
@@ -227,7 +226,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap
 				}
 			}
 
-			atlasSubImage = ase.Image.(subImager).SubImage(frameBounds)
+			atlasSubImage := ase.Image.(subImager).SubImage(frameBounds)
 			frames[frameIdx].Image = ebiten.NewImageFromImage(atlasSubImage)
 			frames[frameIdx].Duration = ase.Frames[i].Duration
 			frameIdx++
