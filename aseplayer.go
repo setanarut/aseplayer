@@ -227,8 +227,6 @@ func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer)
 			frameIdx++
 		}
 
-		ap.Animations[tag.Name].Frames = frames
-
 		switch tag.LoopDirection {
 		case parser.PingPong:
 			for i := len(frames) - 2; i > 0; i-- {
@@ -237,6 +235,8 @@ func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer)
 		case parser.Reverse:
 			slices.Reverse(frames)
 		}
+
+		ap.Animations[tag.Name].Frames = frames
 
 	}
 

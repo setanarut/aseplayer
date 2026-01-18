@@ -14,4 +14,4 @@ require (
 	golang.org/x/sys v0.36.0 // indirect
 )
 
-retract [v1.1.0, v1.2.0] // Mistake discovered.
+retract [v1.1.0, v1.6.0] // Mistake discovered.
