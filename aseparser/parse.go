@@ -51,7 +51,7 @@ func (f *file) parseChunk2019(raw []byte) {
 
 	raw = raw[20:]
 
-	for i := uint32(0); i < entries; i++ {
+	for i := range entries {
 		flags := binary.LittleEndian.Uint16(raw)
 		f.palette[lo+i] = parseColor(raw[2:])
 		raw = raw[6:]

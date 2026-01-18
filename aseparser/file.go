@@ -328,7 +328,7 @@ func makeAtlasFrames(nframes, framew, frameh int) (atlasr image.Rectangle, frame
 
 	atlasr = image.Rect(0, 0, fw*framew, fh*frameh)
 
-	for i := 0; i < nframes; i++ {
+	for i := range nframes {
 		x, y := i%fw, i/fw
 		framesr = append(framesr, image.Rectangle{
 			Min: image.Pt(x*framew, y*frameh),
