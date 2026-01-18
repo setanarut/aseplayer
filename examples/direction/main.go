@@ -67,7 +67,7 @@ func (g *Game) Draw(s *ebiten.Image) {
 
 	d := ebiten.DrawImageOptions{}
 	d.GeoM.Translate(192, 192)
-	s.DrawImage(g.animPlayer.CurrentFrame, &d)
+	s.DrawImage(g.animPlayer.CurrentFrame.Image, &d)
 }
 
 func (g *Game) Layout(w, h int) (int, int) {

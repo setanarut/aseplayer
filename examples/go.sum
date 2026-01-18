@@ -8,6 +8,8 @@ github.com/hajimehoshi/ebiten/v2 v2.9.7 h1:WuNgM24uJxwdLZLqM8SXLAGVBof/45udRjo2t
 github.com/hajimehoshi/ebiten/v2 v2.9.7/go.mod h1:DAt4tnkYYpCvu3x9i1X/nK/vOruNXIlYq/tBXxnhrXM=
 github.com/jezek/xgb v1.1.1 h1:bE/r8ZZtSv7l9gk6nU0mYx51aXrvnyb44892TwSaqS4=
 github.com/jezek/xgb v1.1.1/go.mod h1:nrhwO0FX/enq75I7Y7G8iN1ubpSGZEiA3v9e9GyRFlk=
+github.com/setanarut/v v1.2.2 h1:oeivVtCk9OLkVAMpxwWqJN9XR6+8asQ/DXepQ0Y3rNs=
+github.com/setanarut/v v1.2.2/go.mod h1:/EX95JGm9AilgfEaFCYlOz95IqJGVfCt/7r2i1rNRbw=
 golang.org/x/image v0.35.0 h1:LKjiHdgMtO8z7Fh18nGY6KDcoEtVfsgLDPeLyguqb7I=
 golang.org/x/image v0.35.0/go.mod h1:MwPLTVgvxSASsxdLzKrl8BRFuyqMyGhLwmC+TO1Sybk=
 golang.org/x/sync v0.17.0 h1:l60nONMj9l5drqw6jlhIELNv9I0A4OFgRsG9k2oT9Ug=

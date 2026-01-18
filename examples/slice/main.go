@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 
@@ -39,12 +38,10 @@ func (g *Game) Init() {
 func (g *Game) Update() error {
 
 	if inpututil.IsKeyJustPressed(ebiten.Key1) {
-		g.animPlayer.Play("no_slice")
+		g.animPlayer.Play("slice_test")
 	}
 	if inpututil.IsKeyJustPressed(ebiten.Key2) {
-		g.animPlayer.Play("slice_test")
-		fmt.Println(g.animPlayer.CurrentAnimation.PivotX)
-		fmt.Println(g.animPlayer.CurrentAnimation.PivotY)
+		g.animPlayer.Play("no_slice")
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
@@ -66,12 +63,12 @@ func (g *Game) Draw(s *ebiten.Image) {
 
 	// draw animPlayer
 	d := ebiten.DrawImageOptions{}
-	d.GeoM.Translate(-g.animPlayer.CurrentAnimation.PivotX, -g.animPlayer.CurrentAnimation.PivotY)
+	d.GeoM.Translate(-g.animPlayer.CurrentFrame.Pivot.X, -g.animPlayer.CurrentFrame.Pivot.Y)
 	d.GeoM.Translate(256, 256)
-	s.DrawImage(g.animPlayer.CurrentFrame, &d)
+	s.DrawImage(g.animPlayer.CurrentFrame.Image, &d)
 
 	// draw animation bounds
-	r := g.animPlayer.CurrentFrame.Bounds()
+	r := g.animPlayer.CurrentFrame.Image.Bounds()
 	x, y := d.GeoM.Apply(float64(r.Min.X), float64(r.Min.Y))
 	vector.StrokeRect(s, float32(x), float32(y), float32(r.Dx()), float32(r.Dy()), 1, colornames.Yellow, false)
 
