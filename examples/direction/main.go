@@ -28,7 +28,7 @@ type Game struct {
 }
 
 func (g *Game) Init() {
-	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("dir.ase", false)
+	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("../assets/dir.ase", false)
 	g.w, g.h = 512, 512
 }
 
