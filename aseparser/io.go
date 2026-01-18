@@ -1,10 +1,46 @@
-package parser
+package aseparser
 
 import (
 	"image"
 	"image/color"
 	"io"
+	"io/fs"
+	"os"
 )
+
+func init() {
+	image.RegisterFormat("aseprite", "????\xE0\xA5", Decode, DecodeConfig)
+}
+
+// NewAsepriteFromFile loads and parses an Aseprite file from the given path.
+// It panics if the file cannot be opened or parsed.
+func NewAsepriteFromFile(path string) (ase *Aseprite) {
+	f, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	ase, err = Read(f)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// NewAsepriteFromFileSystem loads and parses an Aseprite file from the given fs path.
+// It panics if the file cannot be opened or parsed.
+func NewAsepriteFromFileSystem(fs fs.FS, path string) (ase *Aseprite) {
+	file, err := fs.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	ase, err = Read(file)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
 
 // Read decodes an Aseprite image from r.
 func Read(r io.Reader) (*Aseprite, error) {
@@ -52,8 +88,4 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		Width:      f.framew * fw,
 		Height:     f.frameh * fh,
 	}, nil
-}
-
-func init() {
-	image.RegisterFormat("aseprite", "????\xE0\xA5", Decode, DecodeConfig)
 }

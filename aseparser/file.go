@@ -1,4 +1,4 @@
-package parser
+package aseparser
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/setanarut/aseplayer/parser/blend"
+	"github.com/setanarut/aseplayer/aseparser/blend"
 )
 
 var errInvalidMagic = errors.New("invalid magic number")

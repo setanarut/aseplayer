@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"image"
 	"io/fs"
-	"os"
 	"slices"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/setanarut/aseplayer/parser"
+	"github.com/setanarut/aseplayer/aseparser"
 	"github.com/setanarut/v"
 )
 
@@ -22,7 +21,12 @@ type subImager interface {
 // AnimPlayer plays and manages Aseprite tag animations.
 type AnimPlayer struct {
 
-	// The frame of the animation currently being played
+	// The frame of the animation currently being played.
+	//
+	// Example:
+	//	dio.GeoM.Translate(-animPlayer.CurrentFrame.Pivot.X, -animPlayer.CurrentFrame.Pivot.Y)
+	//	dio.GeoM.Translate(x, y)
+	//	screen.DrawImage(g.animPlayer.CurrentFrame.Image, dio)
 	CurrentFrame *Frame
 
 	// The animation currently being played
@@ -40,6 +44,14 @@ type AnimPlayer struct {
 	repeatCount      uint16
 }
 
+// Update advances the animation by the given delta time.
+//
+// It handles frame progression, looping, and repeat count logic.
+// Does nothing if the animation is paused or has ended.
+//
+// Example:
+//
+//	myAnimPlayer.Update(aseplayer.Delta)
 func (a *AnimPlayer) Update(dt time.Duration) {
 	if a.Paused || a.isEnded {
 		return
@@ -113,16 +125,10 @@ func (a *AnimPlayer) String() string {
 
 // Animation for AnimPlayer
 type Animation struct {
-
 	// The animation tag name is identical to the Aseprite file
 	Tag string
-
 	// Animation frames
 	Frames []*Frame
-
-	// Frame durations retrieved from the Aseprite file
-	// Durations []time.Duration
-
 	// Repeat specifies how many times the animation should loop.
 	// A value of 0 means infinite looping.
 	Repeat uint16
@@ -150,8 +156,8 @@ type Frame struct {
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
 func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bool) *AnimPlayer {
-	ase := newAseFromFileSystem(fs, asePath)
-	ap := fromAseprite(ase, smartSlice)
+	ase := aseparser.NewAsepriteFromFileSystem(fs, asePath)
+	ap := animPlayerfromAseprite(ase, smartSlice)
 	ase = nil
 	return ap
 }
@@ -170,13 +176,13 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bo
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
 func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer {
-	ase := newAseFromFile(asePath)
-	ap := fromAseprite(ase, smartSlice)
+	ase := aseparser.NewAsepriteFromFile(asePath)
+	ap := animPlayerfromAseprite(ase, smartSlice)
 	ase = nil
 	return ap
 }
 
-func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
+func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
 
 	if len(ase.Tags) == 0 {
 		panic("The Aseprite file does not have a tag.")
@@ -199,7 +205,7 @@ func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer)
 		frames := make([]*Frame, 0, tagLen)
 
 		if smartSliceEnabled {
-			sliceIndex = slices.IndexFunc(ase.Slices, func(e parser.Slice) bool {
+			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseparser.Slice) bool {
 				return e.Name == tag.Name
 			})
 		}
@@ -228,11 +234,11 @@ func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer)
 		}
 
 		switch tag.LoopDirection {
-		case parser.PingPong:
+		case aseparser.PingPong:
 			for i := len(frames) - 2; i > 0; i-- {
 				frames = append(frames, frames[i])
 			}
-		case parser.Reverse:
+		case aseparser.Reverse:
 			slices.Reverse(frames)
 		}
 
@@ -243,31 +249,5 @@ func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer)
 	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
 	ap.CurrentFrame = ap.CurrentAnimation.Frames[0]
 
-	return
-}
-
-func newAseFromFile(path string) (ase *parser.Aseprite) {
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	ase, err = parser.Read(f)
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
-func newAseFromFileSystem(fs fs.FS, path string) (ase *parser.Aseprite) {
-	file, err := fs.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	ase, err = parser.Read(file)
-	if err != nil {
-		panic(err)
-	}
 	return
 }
