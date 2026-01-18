@@ -8,8 +8,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/askeladdk/aseprite"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/setanarut/aseplayer/parser"
 )
 
 const Delta = time.Second / 60
@@ -94,8 +94,15 @@ func (a *AnimPlayer) Rewind() {
 	a.repeatCount = 0
 }
 
+const formatString string = `Tag: %v
+Repeat count: %v
+Ended: %v
+Index: %v
+Frame elapsed: %v
+Paused: %v`
+
 func (a *AnimPlayer) String() string {
-	return fmt.Sprintf(debugFormat, a.CurrentAnimation.Tag,
+	return fmt.Sprintf(formatString, a.CurrentAnimation.Tag,
 		a.repeatCount,
 		a.IsEnded(),
 		a.frameIndex,
@@ -163,7 +170,7 @@ func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer 
 	return ap
 }
 
-func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
+func fromAseprite(ase *parser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
 
 	if len(ase.Tags) == 0 {
 		panic("The Aseprite file does not have a tag.")
@@ -182,7 +189,7 @@ func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlaye
 		durations := make([]time.Duration, 0, frameCount)
 
 		if smartSliceEnabled {
-			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseprite.Slice) bool {
+			sliceIndex = slices.IndexFunc(ase.Slices, func(e parser.Slice) bool {
 				return e.Name == tag.Name
 			})
 		}
@@ -195,7 +202,8 @@ func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlaye
 
 			if smartSliceEnabled {
 				if sliceIndex != -1 {
-					frameBounds = ase.Slices[sliceIndex].Bounds.Add(frameBounds.Min)
+					// frameBounds = ase.Slices[sliceIndex].Bounds.Add(frameBounds.Min)
+					frameBounds = ase.Slices[sliceIndex].Frames[0].Bounds.Add(frameBounds.Min)
 				}
 			}
 
@@ -204,12 +212,12 @@ func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlaye
 		}
 
 		switch tag.LoopDirection {
-		case aseprite.PingPong:
+		case parser.PingPong:
 			for i := len(frames) - 2; i > 0; i-- {
 				frames = append(frames, frames[i])
 				durations = append(durations, durations[i])
 			}
-		case aseprite.Reverse:
+		case parser.Reverse:
 			slices.Reverse(frames)
 			slices.Reverse(durations)
 		}
@@ -223,8 +231,11 @@ func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlaye
 
 		if smartSliceEnabled {
 			if sliceIndex != -1 {
-				ap.Animations[tag.Name].PivotX = float64(ase.Slices[sliceIndex].Pivot.X)
-				ap.Animations[tag.Name].PivotY = float64(ase.Slices[sliceIndex].Pivot.Y)
+				// ap.Animations[tag.Name].PivotX = float64(ase.Slices[sliceIndex].Pivot.X)
+				// ap.Animations[tag.Name].PivotY = float64(ase.Slices[sliceIndex].Pivot.Y)
+
+				ap.Animations[tag.Name].PivotX = float64(ase.Slices[sliceIndex].Frames[0].Pivot.X)
+				ap.Animations[tag.Name].PivotY = float64(ase.Slices[sliceIndex].Frames[0].Pivot.Y)
 
 			} else {
 				r := ap.Animations[tag.Name].Frames[0].Bounds()
@@ -240,26 +251,26 @@ func fromAseprite(ase *aseprite.Aseprite, smartSliceEnabled bool) (ap *AnimPlaye
 	return
 }
 
-func newAseFromFile(path string) (ase *aseprite.Aseprite) {
+func newAseFromFile(path string) (ase *parser.Aseprite) {
 	f, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	ase, err = aseprite.Read(f)
+	ase, err = parser.Read(f)
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-func newAseFromFileSystem(fs fs.FS, path string) (ase *aseprite.Aseprite) {
+func newAseFromFileSystem(fs fs.FS, path string) (ase *parser.Aseprite) {
 	file, err := fs.Open(path)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
-	ase, err = aseprite.Read(file)
+	ase, err = parser.Read(file)
 	if err != nil {
 		panic(err)
 	}

@@ -1,8 +1,14 @@
-module github.com/setanarut/aseplayer
+module github.com/setanarut/aseplayer/examples
 
 go 1.25
 
-require github.com/hajimehoshi/ebiten/v2 v2.9.7
+replace github.com/setanarut/aseplayer => ../
+
+require (
+	github.com/hajimehoshi/ebiten/v2 v2.9.7
+	github.com/setanarut/aseplayer v0.0.0-00010101000000-000000000000
+	golang.org/x/image v0.35.0
+)
 
 require (
 	github.com/ebitengine/gomobile v0.0.0-20250923094054-ea854a63cce1 // indirect
@@ -12,5 +18,3 @@ require (
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 )
-
-retract [v1.1.0, v1.2.0] // Mistake discovered.
