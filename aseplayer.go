@@ -41,7 +41,6 @@ type subImager interface {
 
 // AnimPlayer plays and manages Aseprite tag animations.
 type AnimPlayer struct {
-
 	// The frame of the animation currently being played.
 	//
 	// Example:
@@ -49,13 +48,10 @@ type AnimPlayer struct {
 	//	dio.GeoM.Translate(x, y)
 	//	screen.DrawImage(g.animPlayer.CurrentFrame.Image, dio)
 	CurrentFrame *Frame
-
 	// The animation currently being played
 	CurrentAnimation *Animation
-
 	// Animations accessible by their Aseprite tag names
 	Animations map[string]*Animation
-
 	// If true, the animation is paused
 	Paused bool
 
@@ -114,7 +110,7 @@ func (a *AnimPlayer) Play(tag string) {
 
 // PlayIfNotCurrent rewinds and plays the animation with the given tag if it's not already playing
 func (a *AnimPlayer) PlayIfNotCurrent(tag string) {
-	if tag != a.CurrentAnimation.Tag {
+	if tag != a.CurrentAnimation.Name {
 		a.Play(tag)
 	}
 }
@@ -157,7 +153,7 @@ UserData:
 
 func (a *Animation) String() string {
 	return fmt.Sprintf(animationFormatString,
-		a.Tag,
+		a.Name,
 		len(a.Frames),
 		a.Repeat,
 		a.UserData)
@@ -165,15 +161,18 @@ func (a *Animation) String() string {
 
 // Animation for AnimPlayer
 type Animation struct {
-	// The animation tag name is identical to the Aseprite file
-	Tag string
+	// The animation tag name is identical to the Aseprite tags
+	Name string
 	// Animation frames
 	Frames []*Frame
 	// Repeat specifies how many times the animation should loop.
 	// A value of 0 means infinite looping.
 	Repeat uint16
-
-	// Text field of Aseprite Tag's User Data
+	// Text field of Aseprite Tag's User Data.
+	//
+	// It is useful for data transfer. It can be automated with Aseprite Lua scripting.
+	//
+	// https://www.aseprite.org/api/tag#tagdata
 	UserData string
 }
 
@@ -228,7 +227,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 	for _, tag := range ase.Tags {
 
 		ap.Animations[tag.Name] = &Animation{
-			Tag:      tag.Name,
+			Name:     tag.Name,
 			Repeat:   tag.Repeat,
 			UserData: tag.UserData.Text,
 		}
