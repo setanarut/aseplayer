@@ -185,8 +185,8 @@ func (f *file) initLayers() error {
 
 func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	layer := binary.LittleEndian.Uint16(raw)
-	xpos := int(binary.LittleEndian.Uint16(raw[2:]))
-	ypos := int(binary.LittleEndian.Uint16(raw[4:]))
+	xpos := int(int16(binary.LittleEndian.Uint16(raw[2:])))
+	ypos := int(int16(binary.LittleEndian.Uint16(raw[4:])))
 	opacity := raw[6]
 	celtype := binary.LittleEndian.Uint16(raw[7:])
 
