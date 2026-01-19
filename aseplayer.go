@@ -114,20 +114,39 @@ func (a *AnimPlayer) Rewind() {
 	a.repeatCount = 0
 }
 
-const formatString string = `Tag: %v
-Repeat count: %v
+const animPlayerFormatString string = `Repeat count: %v
 Ended: %v
 Index: %v
 Frame elapsed: %v
-Paused: %v`
+Paused: %v
+--- Animation ---
+%v
+`
 
 func (a *AnimPlayer) String() string {
-	return fmt.Sprintf(formatString, a.CurrentAnimation.Tag,
+	return fmt.Sprintf(animPlayerFormatString,
 		a.repeatCount,
 		a.IsEnded(),
 		a.frameIndex,
 		a.frameElapsedTime,
-		a.Paused)
+		a.Paused,
+		a.CurrentAnimation,
+	)
+}
+
+const animationFormatString string = `Tag: %v
+Total Frames: %v
+Repeat: %v
+UserData:
+%v
+`
+
+func (a *Animation) String() string {
+	return fmt.Sprintf(animationFormatString,
+		a.Tag,
+		len(a.Frames),
+		a.Repeat,
+		a.UserData)
 }
 
 // Animation for AnimPlayer
@@ -211,8 +230,9 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap
 	for _, tag := range ase.Tags {
 
 		ap.Animations[tag.Name] = &Animation{
-			Tag:    tag.Name,
-			Repeat: tag.Repeat,
+			Tag:      tag.Name,
+			Repeat:   tag.Repeat,
+			UserData: tag.UserData.Text,
 		}
 
 		tagLen := tag.Hi - tag.Lo + 1

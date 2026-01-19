@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -29,6 +30,8 @@ type Game struct {
 
 func (g *Game) Init() {
 	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("../assets/dir.ase", false)
+
+	fmt.Println(g.animPlayer.CurrentAnimation)
 	g.w, g.h = 512, 512
 }
 
@@ -62,8 +65,8 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(s *ebiten.Image) {
-	ebitenutil.DebugPrint(s, "Play tags\nKey1 = forward\nkey2 = reverse\nKey3 = repeat_2\nKey4 = ping_pong\n")
-	ebitenutil.DebugPrintAt(s, g.animPlayer.String(), 192, 0)
+	ebitenutil.DebugPrintAt(s, "Play tags\nKey1 = forward\nkey2 = reverse\nKey3 = repeat_2\nKey4 = ping_pong\n", 10, 10)
+	ebitenutil.DebugPrintAt(s, g.animPlayer.String(), 10, 140)
 
 	d := ebiten.DrawImageOptions{}
 	d.GeoM.Translate(192, 192)
