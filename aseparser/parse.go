@@ -29,7 +29,7 @@ func parseColor(raw []byte) color.Color {
 	}
 }
 
-func parseUserData(raw []byte) (data []byte, color color.Color) {
+func parseUserData(raw []byte) (data []byte, col color.Color) {
 	flags := binary.LittleEndian.Uint32(raw)
 	raw = raw[4:]
 
@@ -39,10 +39,10 @@ func parseUserData(raw []byte) (data []byte, color color.Color) {
 	}
 
 	if flags&2 != 0 {
-		color = parseColor(raw)
+		col = parseColor(raw)
+		raw = raw[4:]
 	}
-
-	return
+	return data, col
 }
 
 func (f *file) parseChunk2019(raw []byte) {
@@ -165,7 +165,9 @@ func (f *file) initLayers() error {
 
 			if i < len(chunks)-1 {
 				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
-					l.data, _ = parseUserData(ch2.raw)
+					data, col := parseUserData(ch2.raw)
+					l.Text = string(data)
+					l.Color = col
 				}
 			}
 
@@ -246,7 +248,9 @@ func (f *file) initCels() error {
 				} else if cel != nil && j < (len(chunks)-1) {
 					// user data chunk
 					if ch2 := chunks[j+1]; ch2.typ == 0x2020 {
-						cel.data, _ = parseUserData(ch2.raw)
+						data, col := parseUserData(ch2.raw)
+						cel.Text = string(data)
+						cel.Color = col
 					}
 				}
 			}

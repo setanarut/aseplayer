@@ -17,9 +17,9 @@ import (
 var errInvalidMagic = errors.New("invalid magic number")
 
 type cel struct {
-	image image.Image
-	mask  image.Uniform
-	data  []byte
+	image    image.Image
+	mask     image.Uniform
+	UserData // Embedding UserData struct
 }
 
 func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
@@ -32,7 +32,7 @@ func makeCelImage8(f *file, bounds image.Rectangle, opacity byte, pix []byte) ce
 
 	mask := image.Uniform{color.Alpha{opacity}}
 
-	return cel{&img, mask, nil}
+	return cel{image: &img, mask: mask}
 }
 
 func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
@@ -57,7 +57,7 @@ func makeCelImage16(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 		}
 	}
 	mask := image.Uniform{color.Alpha{opacity}}
-	return cel{img, mask, nil}
+	return cel{image: img, mask: mask}
 }
 
 func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel {
@@ -69,7 +69,7 @@ func makeCelImage32(f *file, bounds image.Rectangle, opacity byte, pix []byte) c
 
 	mask := image.Uniform{color.Alpha{opacity}}
 
-	return cel{&img, mask, nil}
+	return cel{image: &img, mask: mask}
 }
 
 type Layer struct {
@@ -78,6 +78,7 @@ type Layer struct {
 	blendMode uint16
 	opacity   byte
 	data      []byte
+	UserData  // Embedding UserData struct
 }
 
 func (l *Layer) Parse(raw []byte) error {
@@ -279,25 +280,24 @@ func (f *file) buildUserData() []byte {
 
 	for _, l := range f.Layers {
 		if l.flags&1 != 0 {
-			n += len(l.data)
+			n += len(l.Text) // data -> Text
 		}
 	}
 
 	for _, fr := range f.frames {
 		for _, c := range fr.cels {
-			n += len(c.data)
+			n += len(c.Text) // data -> Text
 		}
 	}
 
 	return make([]byte, 0, n)
 }
-
 func (f *file) buildLayerData(userdata []byte) [][]byte {
 	ld := make([][]byte, 0, len(f.Layers))
 	for _, l := range f.Layers {
-		if l.flags&1 != 0 && len(l.data) > 0 {
+		if l.flags&1 != 0 && len(l.Text) > 0 {
 			ofs := len(userdata)
-			userdata = append(userdata, l.data...)
+			userdata = append(userdata, l.Text...)
 			ld = append(ld, userdata[ofs:])
 		}
 	}
@@ -311,15 +311,12 @@ func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame,
 		frames[i].Duration = fr.dur
 		frames[i].Bounds = framesr[i]
 		frameUserDatas := make([]UserData, 0, len(fr.cels))
-		frames[i].Layers = frameUserDatas
 		for _, c := range fr.cels {
-			if nd := len(c.data); nd > 0 {
-				ofs := len(userdata)
-				userdata = append(userdata, c.data...)
-				txtData := userdata[ofs:]
-				frames[i].Layers = append(frames[i].Layers, UserData{Text: string(txtData)})
+			if c.Text != "" || c.Color != nil {
+				frameUserDatas = append(frameUserDatas, UserData{Text: c.Text, Color: c.Color})
 			}
 		}
+		frames[i].Layers = frameUserDatas
 	}
 
 	return frames, userdata

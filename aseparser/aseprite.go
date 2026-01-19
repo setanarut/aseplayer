@@ -29,19 +29,14 @@ const (
 type Tag struct {
 	// Name is the name of the tag. Can be duplicate.
 	Name string
-
 	// Lo is the first frame in the animation.
 	Lo uint16
-
 	// Hi is the last frame in the animation.
 	Hi uint16
-
 	// Repeat specifies how many times to repeat the animation.
 	Repeat uint16
-
 	// LoopDirection is the looping direction of the animation.
 	LoopDirection LoopDirection
-
 	// UserData is optional user data.
 	UserData
 }
@@ -55,11 +50,9 @@ type UserData struct {
 type Frame struct {
 	// Bounds is the image bounds of the frame in the sprite's atlas.
 	Bounds image.Rectangle
-
 	// Duration is the time in seconds that the frame should be displayed for
 	// in a tag animation loop.
 	Duration time.Duration
-
 	// Layers lists all optional UserData set in the cels that make up the frame.
 	// The UserData of invisible and reference layers is not included.
 	Layers []UserData
@@ -69,11 +62,10 @@ type Frame struct {
 type Slice struct {
 	// Name is the name of the slice. Can be duplicate.
 	Name string
-
 	// Frames contains the slice geometry for each animation frame.
 	// Index corresponds to frame number; expanded from sparse keyframes.
 	Frames []SliceFrame
-
+	// UserData is optional user data.
 	UserData
 }
 
