@@ -13,6 +13,7 @@ var ase = aseparser.NewAsepriteFromFile("../assets/slice.ase")
 var img *ebiten.Image
 
 func main() {
+
 	ebiten.SetScreenClearedEveryFrame(false)
 	// img = ebiten.NewImageFromImage(ase.GetFrameImage(4))
 	img = ebiten.NewImageFromImage(ase.GetSliceImage("slice_test", 1))

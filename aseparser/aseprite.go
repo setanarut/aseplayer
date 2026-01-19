@@ -41,6 +41,14 @@ type Tag struct {
 
 	// LoopDirection is the looping direction of the animation.
 	LoopDirection LoopDirection
+
+	// UserData is optional user data.
+	UserData
+}
+
+type UserData struct {
+	Color color.Color
+	Text  string
 }
 
 // Frame represents a single frame in the sprite.
@@ -62,15 +70,11 @@ type Slice struct {
 	// Name is the name of the slice. Can be duplicate.
 	Name string
 
-	// Color is the slice color.
-	Color color.Color
-
-	// UserData is optional user data.
-	UserData []byte
-
 	// Frames contains the slice geometry for each animation frame.
 	// Index corresponds to frame number; expanded from sparse keyframes.
 	Frames []SliceFrame
+
+	UserData
 }
 
 type SliceFrame struct {
