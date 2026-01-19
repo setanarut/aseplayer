@@ -273,7 +273,13 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 		switch tag.LoopDirection {
 		case aseparser.PingPong:
 			for i := len(frames) - 2; i > 0; i-- {
-				frames = append(frames, frames[i])
+				originalFrame := frames[i]
+				frameCopy := &Frame{
+					Image:    originalFrame.Image,
+					Pivot:    originalFrame.Pivot,
+					Duration: originalFrame.Duration,
+				}
+				frames = append(frames, frameCopy)
 			}
 		case aseparser.Reverse:
 			slices.Reverse(frames)
