@@ -12,6 +12,13 @@ import (
 	"github.com/setanarut/v"
 )
 
+type ParseMode int
+
+const (
+	SmartSlices ParseMode = iota
+	TrimCels
+)
+
 const Delta = time.Second / 60
 
 type subImager interface {
@@ -132,6 +139,8 @@ type Animation struct {
 	// Repeat specifies how many times the animation should loop.
 	// A value of 0 means infinite looping.
 	Repeat uint16
+
+	UserData []byte
 }
 
 type Frame struct {
@@ -180,6 +189,10 @@ func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer 
 	ap := animPlayerfromAseprite(ase, smartSlice)
 	ase = nil
 	return ap
+}
+
+type Options struct {
+	AutoSlice bool
 }
 
 func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {

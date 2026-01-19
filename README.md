@@ -44,7 +44,7 @@ g.animPlayer.Animations["turn"].Repeat = 1
 
 ## Slices
 
-With the `smartSlice` argument, if there is a Aseprite's *Slice* with the same name as the *Tag*, the animation frames is trimmed accordingly. The pivot point of the *Slice* is also taken as `Frame.Pivot` See [./examples/slice](./examples/slice/)
+With the `smartSlice` argument, if there is an Aseprite's *Slice* with the same name as the *Tag*, the animation frames is trimmed accordingly. The pivot point of the *Slice* is also taken as `Frame.Pivot` See [./examples/slice](./examples/slice/)
 
 ```Go
 func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer

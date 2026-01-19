@@ -36,23 +36,13 @@ func (g *Game) Init() {
 }
 
 func (g *Game) Update() error {
-
 	if inpututil.IsKeyJustPressed(ebiten.Key1) {
 		g.animPlayer.Play("slice_test")
 	}
 	if inpututil.IsKeyJustPressed(ebiten.Key2) {
 		g.animPlayer.Play("no_slice")
 	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
-		g.animPlayer.Animations["forward"].Repeat = 1
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-		g.animPlayer.Paused = !g.animPlayer.Paused
-	}
-
 	g.animPlayer.Update(aseplayer.Delta)
-
 	return nil
 }
 
