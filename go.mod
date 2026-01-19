@@ -15,3 +15,4 @@ require (
 )
 
 retract [v1.1.0, v1.6.0] // Mistake discovered.
+retract v1.8.0           // Fix coordinate parsing overflow.
