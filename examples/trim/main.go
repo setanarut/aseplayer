@@ -31,7 +31,8 @@ type Game struct {
 }
 
 func (g *Game) Init() {
-	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("../assets/slice.ase", aseplayer.Slices)
+	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("../assets/slice.ase", aseplayer.Trim)
+	g.animPlayer.Play("no_slice")
 	g.w, g.h = 512, 512
 }
 
@@ -53,7 +54,7 @@ func (g *Game) Draw(s *ebiten.Image) {
 
 	// draw animPlayer
 	d := ebiten.DrawImageOptions{}
-	d.GeoM.Translate(-g.animPlayer.CurrentFrame.Pivot.X, -g.animPlayer.CurrentFrame.Pivot.Y)
+	d.GeoM.Translate(g.animPlayer.CurrentFrame.Pivot.X, g.animPlayer.CurrentFrame.Pivot.Y)
 	d.GeoM.Translate(256, 256)
 	s.DrawImage(g.animPlayer.CurrentFrame.Image, &d)
 

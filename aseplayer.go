@@ -12,11 +12,25 @@ import (
 	"github.com/setanarut/v"
 )
 
-type ParseMode int
+type CropMode int
 
 const (
-	SmartSlices ParseMode = iota
-	TrimCels
+
+	// All animation frames will be the same size as the canvas. Pivots are zero.
+	Default CropMode = iota
+
+	// If the Timeline tag and Slice names are the same, the animation frames are cropped according to the Slice boundaries.
+	// Frame.Pivot is the pivot of the Slice.
+	//
+	// It is the position relative to the top-left corner of the Slice boundaries.
+	//
+	// https://www.aseprite.org/docs/slices#slices
+	Slices
+
+	// All cel images will be trimmed (removes the transparent edges). Frame.Pivot specifies the position on the Aseprite canvas (cel.position). Slices are ignored.
+	//
+	// https://www.aseprite.org/api/cel#celposition
+	Trim
 )
 
 const Delta = time.Second / 60
@@ -175,18 +189,10 @@ type Frame struct {
 //
 // The first Aseprite tag is automatically set as the current animation.
 //
-// When smartSlice is true, the Smart Slice algorithm performs the following:
-//   - Finds a Slice whose name matches the Timeline tag name
-//   - Crops the Frame.Image to the Slice's bounds
-//   - Extracts the Pivot information from the Slice and sets Frame.Pivot
-//
-// When smartSlice is false, the Frame.Image size matches the Aseprite canvas size,
-// and Frame.Pivot default to the top-left of the image. (zero)
-//
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bool) *AnimPlayer {
+func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, mode CropMode) *AnimPlayer {
 	ase := aseparser.NewAsepriteFromFileSystem(fs, asePath)
-	ap := animPlayerfromAseprite(ase, smartSlice)
+	ap := animPlayerfromAseprite(ase, mode)
 	ase = nil
 	return ap
 }
@@ -195,27 +201,19 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, smartSlice bo
 //
 // The first Aseprite tag is automatically set as the current animation.
 //
-// When smartSlice is true, the Smart Slice algorithm performs the following:
-//   - Finds a Slice whose name matches the Timeline tag name
-//   - Crops the Frame.Image to the Slice's bounds
-//   - Extracts the Pivot information from the Slice and sets Frame.Pivot
-//
-// When smartSlice is false, the Frame.Image size matches the Aseprite canvas size,
-// and Frame.Pivot default to the top-left of the image. (zero)
-//
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFile(asePath string, smartSlice bool) *AnimPlayer {
+func NewAnimPlayerFromAsepriteFile(asePath string, mode CropMode) *AnimPlayer {
 	ase := aseparser.NewAsepriteFromFile(asePath)
-	ap := animPlayerfromAseprite(ase, smartSlice)
+	ap := animPlayerfromAseprite(ase, mode)
 	ase = nil
 	return ap
 }
 
-type Options struct {
-	AutoSlice bool
-}
+func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPlayer) {
 
-func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap *AnimPlayer) {
+	if mode > 2 {
+		panic("Unsupported CropMode!")
+	}
 
 	if len(ase.Tags) == 0 {
 		panic("The Aseprite file does not have a tag.")
@@ -238,7 +236,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap
 		tagLen := tag.Hi - tag.Lo + 1
 		frames := make([]*Frame, 0, tagLen)
 
-		if smartSliceEnabled {
+		if mode == Slices {
 			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseparser.Slice) bool {
 				return e.Name == tag.Name
 			})
@@ -247,16 +245,23 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, smartSliceEnabled bool) (ap
 		frameIdx := 0
 		for i := tag.Lo; i <= tag.Hi; i++ {
 			frames = append(frames, &Frame{})
+
 			frameBounds := ase.Frames[i].Bounds
 
-			if smartSliceEnabled {
+			switch mode {
+			case Slices:
 				if sliceIndex != -1 {
 					frameBounds = ase.Slices[sliceIndex].Frames[i].Bounds.Add(frameBounds.Min)
 					frames[frameIdx].Pivot = v.Vec{
 						X: float64(ase.Slices[sliceIndex].Frames[i].Pivot.X),
 						Y: float64(ase.Slices[sliceIndex].Frames[i].Pivot.Y),
 					}
-
+				}
+			case Trim:
+				frameBounds = ase.Frames[i].CelBounds.Add(ase.Frames[i].Bounds.Min)
+				frames[frameIdx].Pivot = v.Vec{
+					X: float64(ase.Frames[i].CelBounds.Min.X),
+					Y: float64(ase.Frames[i].CelBounds.Min.Y),
 				}
 			}
 
