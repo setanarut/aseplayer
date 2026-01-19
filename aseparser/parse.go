@@ -190,50 +190,43 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	opacity := raw[6]
 	celtype := binary.LittleEndian.Uint16(raw[7:])
 
-	// invisible layer
-	if f.Layers[layer].flags&1 == 0 {
-		return nil, nil
-	}
-
-	// reference layer
-	if f.Layers[layer].flags&64 != 0 {
+	if f.Layers[layer].flags&1 == 0 || f.Layers[layer].flags&64 != 0 {
 		return nil, nil
 	}
 
 	raw = raw[16:]
-
 	opacity = byte((int(opacity) * int(f.Layers[layer].opacity)) / 255)
 
+	var pix []byte
+
 	switch celtype {
-	case 0: // uncompressed image
-		width := int(binary.LittleEndian.Uint16(raw))
-		height := int(binary.LittleEndian.Uint16(raw[2:]))
-		pix := raw[4:]
-		bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
-		cel := f.makeCel(f, bounds, opacity, pix)
-		f.frames[frame].cels[layer] = cel
-	case 1: // linked cel
+	case 0: // uncompressed
+		pix = raw[4:]
+	case 1: // linked
 		srcFrame := int(binary.LittleEndian.Uint16(raw))
-		srcCel := f.frames[srcFrame].cels[layer]
-		f.frames[frame].cels[layer] = srcCel
-	case 2: // compressed image
-		width := int(binary.LittleEndian.Uint16(raw))
-		height := int(binary.LittleEndian.Uint16(raw[2:]))
+		f.frames[frame].cels[layer] = f.frames[srcFrame].cels[layer]
+		return &f.frames[frame].cels[layer], nil
+	case 2: // compressed
 		zr, err := zlib.NewReader(bytes.NewReader(raw[4:]))
 		if err != nil {
 			return nil, err
 		}
-		pix, err := io.ReadAll(zr)
+		defer zr.Close()
+
+		data, err := io.ReadAll(zr)
 		if err != nil {
 			return nil, err
 		}
-		bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
-		cel := f.makeCel(f, bounds, opacity, pix)
-		f.frames[frame].cels[layer] = cel
+		pix = data
 	default:
 		return nil, errors.New("unsupported cel type")
 	}
 
+	width := int(binary.LittleEndian.Uint16(raw))
+	height := int(binary.LittleEndian.Uint16(raw[2:]))
+	bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
+
+	f.frames[frame].cels[layer] = f.makeCel(f, bounds, opacity, pix)
 	return &f.frames[frame].cels[layer], nil
 }
 

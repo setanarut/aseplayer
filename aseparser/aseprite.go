@@ -50,6 +50,8 @@ type UserData struct {
 type Frame struct {
 	// Bounds is the image bounds of the frame in the sprite's atlas.
 	Bounds image.Rectangle
+
+	CelBounds image.Rectangle
 	// Duration is the time in seconds that the frame should be displayed for
 	// in a tag animation loop.
 	Duration time.Duration
@@ -136,12 +138,17 @@ func (a *Aseprite) readFrom(r io.Reader) error {
 		return err
 	}
 
+	userdata := f.buildUserData()
 	var framesr []image.Rectangle
 	a.Image, framesr = f.buildAtlas()
-	userdata := f.buildUserData()
 	a.Frames, userdata = f.buildFrames(framesr, userdata)
 	a.LayerData = f.buildLayerData(userdata)
 	a.Tags = f.buildTags()
 	a.Slices = f.buildSlices()
+
+	for i := range a.Frames {
+		a.Frames[i].CelBounds = f.celBounds[i]
+	}
+
 	return nil
 }

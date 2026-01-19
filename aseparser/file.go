@@ -153,6 +153,7 @@ type file struct {
 	transparent uint8
 	palette     color.Palette
 	frames      []frame
+	celBounds   []image.Rectangle
 	Layers      []Layer
 	makeCel     func(f *file, bounds image.Rectangle, opacity byte, pix []byte) cel
 }
@@ -232,6 +233,7 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	}
 
 	framebounds := image.Rect(0, 0, f.framew, f.frameh)
+	f.celBounds = make([]image.Rectangle, 0)
 
 	dstblend := image.NewRGBA(framebounds)
 	dst := image.NewRGBA(framebounds)
@@ -239,13 +241,21 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 	transparent := &image.Uniform{color.Transparent}
 
 	for i, fr := range f.frames {
+
+		var celRect image.Rectangle
+
 		draw.Draw(dst, framebounds, transparent, image.Point{}, draw.Src)
-		for layer, c := range fr.cels {
-			if c.image == nil {
+
+		for layerIndex, cel := range fr.cels {
+
+			// hücre boşsa atla
+			if cel.image == nil {
 				continue
 			}
 
-			src := c.image
+			celRect = cel.image.Bounds()
+
+			src := cel.image
 			sr := src.Bounds()
 			sp := sr.Min
 
@@ -259,19 +269,19 @@ func (f *file) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 				}
 			}
 
-			if mode := f.Layers[layer].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
+			if mode := f.Layers[layerIndex].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
 				draw.Draw(dstblend, framebounds, transparent, image.Point{}, draw.Src)
 				blend.Blend(dstblend, sr.Sub(sp), src, sp, dst, sp, blend.Modes[mode])
 				src = dstblend
 				sp = image.Point{}
 			}
-
-			draw.DrawMask(dst, sr, src, sp, &c.mask, image.Point{}, draw.Over)
+			draw.DrawMask(dst, sr, src, sp, &cel.mask, image.Point{}, draw.Over)
 		}
+
+		f.celBounds = append(f.celBounds, celRect)
 
 		draw.Draw(atlas, framesr[i], dst, image.Point{}, draw.Src)
 	}
-
 	return
 }
 
@@ -318,11 +328,13 @@ func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame,
 		}
 		frames[i].Layers = frameUserDatas
 	}
+	
 
 	return frames, userdata
 }
 
 func makeAtlasFrames(nframes, framew, frameh int) (atlasr image.Rectangle, framesr []image.Rectangle) {
+
 	fw, fh := factorPowerOfTwo(nframes)
 	if framew > frameh {
 		fw, fh = fh, fw

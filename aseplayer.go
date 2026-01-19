@@ -140,7 +140,8 @@ type Animation struct {
 	// A value of 0 means infinite looping.
 	Repeat uint16
 
-	UserData []byte
+	// Text field of Aseprite Tag's User Data
+	UserData string
 }
 
 type Frame struct {

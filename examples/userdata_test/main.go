@@ -10,6 +10,11 @@ var ase = aseparser.NewAsepriteFromFile("../assets/slice.ase")
 
 func main() {
 
+	for _, f := range ase.Frames {
+		fmt.Println("Bounds", f.Bounds)
+		fmt.Println("Cel bounds", f.CelBounds)
+	}
+
 	for i, frame1LayerCelUserData := range ase.Frames[0].Layers {
 		fmt.Println(i, frame1LayerCelUserData)
 	}
