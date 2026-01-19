@@ -86,14 +86,14 @@ func (a *AnimPlayer) Update(dt time.Duration) {
 				if a.repeatCount >= activeAnim.Repeat {
 					a.isEnded = true
 					a.frameIndex = len(activeAnim.Frames) - 1
-					a.CurrentFrame = activeAnim.Frames[a.frameIndex]
+					a.CurrentFrame = &activeAnim.Frames[a.frameIndex]
 					return
 				}
 				a.frameIndex = 0
 			}
 		}
 	}
-	a.CurrentFrame = activeAnim.Frames[a.frameIndex]
+	a.CurrentFrame = &activeAnim.Frames[a.frameIndex]
 }
 
 // If Animation.Repeat is not zero, it returns true when the animation ends. If it is zero, it is always false.
@@ -104,7 +104,7 @@ func (a *AnimPlayer) IsEnded() bool {
 // Play rewinds and plays the animation.
 func (a *AnimPlayer) Play(tag string) {
 	a.CurrentAnimation = a.Animations[tag]
-	a.CurrentFrame = a.CurrentAnimation.Frames[0]
+	a.CurrentFrame = &a.CurrentAnimation.Frames[0]
 	a.Rewind()
 }
 
@@ -119,7 +119,7 @@ func (a *AnimPlayer) PlayIfNotCurrent(tag string) {
 func (a *AnimPlayer) Rewind() {
 	a.frameIndex = 0
 	a.frameElapsedTime = 0
-	a.CurrentFrame = a.CurrentAnimation.Frames[0]
+	a.CurrentFrame = &a.CurrentAnimation.Frames[0]
 	a.isEnded = false
 	a.repeatCount = 0
 }
@@ -164,7 +164,7 @@ type Animation struct {
 	// The animation tag name is identical to the Aseprite tags
 	Name string
 	// Animation frames
-	Frames []*Frame
+	Frames []Frame
 	// Repeat specifies how many times the animation should loop.
 	// A value of 0 means infinite looping.
 	Repeat uint16
@@ -233,7 +233,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 		}
 
 		tagLen := tag.Hi - tag.Lo + 1
-		frames := make([]*Frame, 0, tagLen)
+		frames := make([]Frame, 0, tagLen)
 
 		if mode == Slices {
 			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseparser.Slice) bool {
@@ -243,7 +243,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 
 		frameIdx := 0
 		for i := tag.Lo; i <= tag.Hi; i++ {
-			frames = append(frames, &Frame{})
+			frames = append(frames, Frame{})
 
 			frameBounds := ase.Frames[i].Bounds
 
@@ -274,7 +274,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 		case aseparser.PingPong:
 			for i := len(frames) - 2; i > 0; i-- {
 				originalFrame := frames[i]
-				frameCopy := &Frame{
+				frameCopy := Frame{
 					Image:    originalFrame.Image,
 					Pivot:    originalFrame.Pivot,
 					Duration: originalFrame.Duration,
@@ -290,7 +290,7 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 	}
 
 	ap.CurrentAnimation = ap.Animations[ase.Tags[0].Name]
-	ap.CurrentFrame = ap.CurrentAnimation.Frames[0]
+	ap.CurrentFrame = &ap.CurrentAnimation.Frames[0]
 
 	return
 }
