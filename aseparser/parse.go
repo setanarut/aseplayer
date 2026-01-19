@@ -165,7 +165,7 @@ func (f *file) initLayers() error {
 
 			if i < len(chunks)-1 {
 				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
-					l.Data, _ = parseUserData(ch2.raw)
+					l.data, _ = parseUserData(ch2.raw)
 				}
 			}
 

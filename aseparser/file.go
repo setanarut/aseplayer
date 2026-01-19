@@ -77,7 +77,7 @@ type Layer struct {
 	flags     uint16
 	blendMode uint16
 	opacity   byte
-	Data      []byte
+	data      []byte
 }
 
 func (l *Layer) Parse(raw []byte) error {
@@ -279,7 +279,7 @@ func (f *file) buildUserData() []byte {
 
 	for _, l := range f.Layers {
 		if l.flags&1 != 0 {
-			n += len(l.Data)
+			n += len(l.data)
 		}
 	}
 
@@ -295,9 +295,9 @@ func (f *file) buildUserData() []byte {
 func (f *file) buildLayerData(userdata []byte) [][]byte {
 	ld := make([][]byte, 0, len(f.Layers))
 	for _, l := range f.Layers {
-		if l.flags&1 != 0 && len(l.Data) > 0 {
+		if l.flags&1 != 0 && len(l.data) > 0 {
 			ofs := len(userdata)
-			userdata = append(userdata, l.Data...)
+			userdata = append(userdata, l.data...)
 			ld = append(ld, userdata[ofs:])
 		}
 	}
@@ -310,12 +310,14 @@ func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame,
 	for i, fr := range f.frames {
 		frames[i].Duration = fr.dur
 		frames[i].Bounds = framesr[i]
-		frames[i].Data = make([][]byte, 0, len(fr.cels))
+		frameUserDatas := make([]UserData, 0, len(fr.cels))
+		frames[i].Layers = frameUserDatas
 		for _, c := range fr.cels {
 			if nd := len(c.data); nd > 0 {
 				ofs := len(userdata)
 				userdata = append(userdata, c.data...)
-				frames[i].Data = append(frames[i].Data, userdata[ofs:])
+				txtData := userdata[ofs:]
+				frames[i].Layers = append(frames[i].Layers, UserData{Text: string(txtData)})
 			}
 		}
 	}

@@ -60,9 +60,9 @@ type Frame struct {
 	// in a tag animation loop.
 	Duration time.Duration
 
-	// Data lists all optional user data set in the cels that make up the frame.
-	// The data of invisible and reference layers is not included.
-	Data [][]byte
+	// Layers lists all optional UserData set in the cels that make up the frame.
+	// The UserData of invisible and reference layers is not included.
+	Layers []UserData
 }
 
 // Slice represents Aseprite's slice.
