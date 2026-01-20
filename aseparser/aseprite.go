@@ -122,7 +122,7 @@ func (a *Aseprite) GetSliceImage(sliceName string, frameIndex uint16) image.Imag
 }
 
 func (a *Aseprite) readFrom(r io.Reader) error {
-	var f file
+	var f ase
 
 	if _, err := f.ReadFrom(r); err != nil {
 		return err
@@ -138,11 +138,11 @@ func (a *Aseprite) readFrom(r io.Reader) error {
 		return err
 	}
 
-	userdata := f.buildUserData()
+	userdata := f.buildUserDataText()
 	var framesr []image.Rectangle
 	a.Image, framesr = f.buildAtlas()
 	a.Frames, userdata = f.buildFrames(framesr, userdata)
-	a.LayerData = f.buildLayerData(userdata)
+	a.LayerData = f.buildLayerUserData(userdata)
 	a.Tags = f.buildTags()
 	a.Slices = f.buildSlices()
 
