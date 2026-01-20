@@ -59,7 +59,7 @@ func (g *Game) Draw(s *ebiten.Image) {
 	s.DrawImage(g.animPlayer.CurrentFrame.Image, &d)
 
 	// draw animation bounds
-	r := g.animPlayer.CurrentFrame.Image.Bounds()
+	r := g.animPlayer.CurrentFrame.Bounds()
 	x, y := d.GeoM.Apply(float64(r.Min.X), float64(r.Min.Y))
 	vector.StrokeRect(s, float32(x), float32(y), float32(r.Dx()), float32(r.Dy()), 1, colornames.Yellow, false)
 

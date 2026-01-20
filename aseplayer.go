@@ -177,7 +177,7 @@ type Animation struct {
 }
 
 type Frame struct {
-	Image *ebiten.Image
+	*ebiten.Image
 	// Pivot taken from Aseprite's Slice. A point in Frame.Image.Bounds().
 	Pivot v.Vec
 	// Frame duration from the Aseprite file

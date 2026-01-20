@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -30,8 +29,6 @@ type Game struct {
 
 func (g *Game) Init() {
 	g.animPlayer = aseplayer.NewAnimPlayerFromAsepriteFile("../assets/dir.ase", aseplayer.Default)
-
-	fmt.Println(g.animPlayer.CurrentAnimation)
 	g.w, g.h = 512, 512
 }
 
