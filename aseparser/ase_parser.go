@@ -149,19 +149,20 @@ func (f *frame) Read(raw []byte) ([]byte, error) {
 }
 
 type ase struct {
-	framew      int
-	frameh      int
-	flags       uint16
-	bpp         uint16
-	transparent uint8
-	palette     color.Palette
-	frames      []frame
-	celBounds   []image.Rectangle
-	Layers      []Layer
-	makeCel     func(f *ase, bounds image.Rectangle, opacity byte, pix []byte) cel
+	frameW                  int
+	frameH                  int
+	flags                   uint16
+	bpp                     uint16
+	transparentPaletteIndex uint8
+	palette                 color.Palette
+	frames                  []frame
+	celRects                []image.Rectangle
+	framesRects             []image.Rectangle
+	Layers                  []Layer
+	makeCelFunc             func(f *ase, bounds image.Rectangle, opacity byte, pix []byte) cel
 }
 
-func (ase *ase) ReadFrom(r io.Reader) (int64, error) {
+func (a *ase) ReadFrom(r io.Reader) (int64, error) {
 	var hdr [128]byte
 
 	raw := hdr[:]
@@ -178,29 +179,29 @@ func (ase *ase) ReadFrom(r io.Reader) (int64, error) {
 		return 128, errors.New("unsupported pixel ratio")
 	}
 
-	ase.bpp = binary.LittleEndian.Uint16(raw[12:])
-	ase.flags = binary.LittleEndian.Uint16(raw[14:])
-	ase.frames = make([]frame, 0, binary.LittleEndian.Uint16(raw[6:]))
-	ase.framew = int(binary.LittleEndian.Uint16(raw[8:]))
-	ase.frameh = int(binary.LittleEndian.Uint16(raw[10:]))
-	ase.palette = make(color.Palette, binary.LittleEndian.Uint16(raw[32:]))
-	ase.transparent = raw[28]
+	a.bpp = binary.LittleEndian.Uint16(raw[12:])
+	a.flags = binary.LittleEndian.Uint16(raw[14:])
+	a.frames = make([]frame, 0, binary.LittleEndian.Uint16(raw[6:]))
+	a.frameW = int(binary.LittleEndian.Uint16(raw[8:]))
+	a.frameH = int(binary.LittleEndian.Uint16(raw[10:]))
+	a.palette = make(color.Palette, binary.LittleEndian.Uint16(raw[32:]))
+	a.transparentPaletteIndex = raw[28]
 
-	switch ase.bpp {
+	switch a.bpp {
 	case 8:
-		ase.makeCel = makeCelImage8
+		a.makeCelFunc = makeCelImage8
 	case 16:
-		ase.makeCel = makeCelImage16
+		a.makeCelFunc = makeCelImage16
 	case 32:
-		ase.makeCel = makeCelImage32
+		a.makeCelFunc = makeCelImage32
 	default:
 		return 0, errors.New("invalid color depth")
 	}
 
-	for i := range ase.palette {
-		ase.palette[i] = color.Black
+	for i := range a.palette {
+		a.palette[i] = color.Black
 	}
-	ase.palette[ase.transparent] = color.Transparent
+	a.palette[a.transparentPaletteIndex] = color.Transparent
 
 	fileSize := int64(binary.LittleEndian.Uint32(raw))
 	raw = make([]byte, fileSize-128)
@@ -216,14 +217,14 @@ func (ase *ase) ReadFrom(r io.Reader) (int64, error) {
 			return fileSize, err
 		}
 
-		ase.frames = append(ase.frames, fr)
+		a.frames = append(a.frames, fr)
 	}
 
 	return fileSize, nil
 }
 
 // Slice Chunk (0x2022)
-func (ase *ase) parseSliceChunk0x2022(s *Slice, flags uint32, raw []byte) []byte {
+func (a *ase) parseSliceChunk0x2022(s *Slice, flags uint32, raw []byte) []byte {
 	var key SliceFrame
 
 	x := int32(binary.LittleEndian.Uint32(raw[4:]))
@@ -262,7 +263,7 @@ func (ase *ase) parseSliceChunk0x2022(s *Slice, flags uint32, raw []byte) []byte
 }
 
 // Tags Chunk (0x2018)
-func (ase *ase) parseTagsChunk0x2018(t *Tag, raw []byte) []byte {
+func (a *ase) parseTagsChunk0x2018(t *Tag, raw []byte) []byte {
 	t.Lo = binary.LittleEndian.Uint16(raw)
 	t.Hi = binary.LittleEndian.Uint16(raw[2:])
 	t.LoopDirection = LoopDirection(raw[4])
@@ -272,7 +273,7 @@ func (ase *ase) parseTagsChunk0x2018(t *Tag, raw []byte) []byte {
 }
 
 // User Data Chunk (0x2020)
-func (ase *ase) parseUserDataChunk0x2020(raw []byte) (data []byte, col color.Color) {
+func (a *ase) parseUserDataChunk0x2020(raw []byte) (data []byte, col color.Color) {
 	flags := binary.LittleEndian.Uint32(raw)
 	raw = raw[4:]
 
@@ -289,7 +290,7 @@ func (ase *ase) parseUserDataChunk0x2020(raw []byte) (data []byte, col color.Col
 }
 
 // Palette Chunk (0x2019)
-func (ase *ase) parsePaletteChunk0x2019(raw []byte) {
+func (a *ase) parsePaletteChunk0x2019(raw []byte) {
 	entries := binary.LittleEndian.Uint32(raw[0:])
 	lo := binary.LittleEndian.Uint32(raw[4:])
 
@@ -297,7 +298,7 @@ func (ase *ase) parsePaletteChunk0x2019(raw []byte) {
 
 	for i := range entries {
 		flags := binary.LittleEndian.Uint16(raw)
-		ase.palette[lo+i] = parseColor(raw[2:])
+		a.palette[lo+i] = parseColor(raw[2:])
 		raw = raw[6:]
 
 		if flags&1 != 0 {
@@ -308,7 +309,7 @@ func (ase *ase) parsePaletteChunk0x2019(raw []byte) {
 
 // Old palette chunk (0x0011)
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0011
-func (ase *ase) parseOldPaletteChunk0x0011(raw []byte) {
+func (a *ase) parseOldPaletteChunk0x0011(raw []byte) {
 	packets := binary.LittleEndian.Uint16(raw)
 	raw = raw[2:]
 
@@ -324,8 +325,8 @@ func (ase *ase) parseOldPaletteChunk0x0011(raw []byte) {
 		}
 		raw = raw[2:]
 
-		for j := 0; j < n && currentIndex < len(ase.palette); j++ {
-			ase.palette[currentIndex] = color.NRGBA{
+		for j := 0; j < n && currentIndex < len(a.palette); j++ {
+			a.palette[currentIndex] = color.NRGBA{
 				R: raw[0] * 4,
 				G: raw[1] * 4,
 				B: raw[2] * 4,
@@ -338,19 +339,19 @@ func (ase *ase) parseOldPaletteChunk0x0011(raw []byte) {
 }
 
 // Cel Chunk (0x2005)
-func (ase *ase) parseCelChunk0x2005(frame int, raw []byte) (*cel, error) {
+func (a *ase) parseCelChunk0x2005(frame int, raw []byte) (*cel, error) {
 	layer := binary.LittleEndian.Uint16(raw)
 	xpos := int(int16(binary.LittleEndian.Uint16(raw[2:])))
 	ypos := int(int16(binary.LittleEndian.Uint16(raw[4:])))
 	opacity := raw[6]
 	celtype := binary.LittleEndian.Uint16(raw[7:])
 
-	if ase.Layers[layer].flags&1 == 0 || ase.Layers[layer].flags&64 != 0 {
+	if a.Layers[layer].flags&1 == 0 || a.Layers[layer].flags&64 != 0 {
 		return nil, nil
 	}
 
 	raw = raw[16:]
-	opacity = byte((int(opacity) * int(ase.Layers[layer].opacity)) / 255)
+	opacity = byte((int(opacity) * int(a.Layers[layer].opacity)) / 255)
 
 	var pix []byte
 
@@ -359,8 +360,8 @@ func (ase *ase) parseCelChunk0x2005(frame int, raw []byte) (*cel, error) {
 		pix = raw[4:]
 	case 1: // linked
 		srcFrame := int(binary.LittleEndian.Uint16(raw))
-		ase.frames[frame].cels[layer] = ase.frames[srcFrame].cels[layer]
-		return &ase.frames[frame].cels[layer], nil
+		a.frames[frame].cels[layer] = a.frames[srcFrame].cels[layer]
+		return &a.frames[frame].cels[layer], nil
 	case 2: // compressed
 		zr, err := zlib.NewReader(bytes.NewReader(raw[4:]))
 		if err != nil {
@@ -381,13 +382,13 @@ func (ase *ase) parseCelChunk0x2005(frame int, raw []byte) (*cel, error) {
 	height := int(binary.LittleEndian.Uint16(raw[2:]))
 	bounds := image.Rect(xpos, ypos, xpos+width, ypos+height)
 
-	ase.frames[frame].cels[layer] = ase.makeCel(ase, bounds, opacity, pix)
-	return &ase.frames[frame].cels[layer], nil
+	a.frames[frame].cels[layer] = a.makeCelFunc(a, bounds, opacity, pix)
+	return &a.frames[frame].cels[layer], nil
 }
 
 // Old palette chunk (0x0004)
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0004
-func (ase *ase) parseOldPaletteChunk0x0004(raw []byte) {
+func (a *ase) parseOldPaletteChunk0x0004(raw []byte) {
 	packets := binary.LittleEndian.Uint16(raw)
 	raw = raw[2:]
 
@@ -403,8 +404,8 @@ func (ase *ase) parseOldPaletteChunk0x0004(raw []byte) {
 		}
 		raw = raw[2:]
 
-		for j := 0; j < n && currentIndex < len(ase.palette); j++ {
-			ase.palette[currentIndex] = color.NRGBA{
+		for j := 0; j < n && currentIndex < len(a.palette); j++ {
+			a.palette[currentIndex] = color.NRGBA{
 				R: raw[0],
 				G: raw[1],
 				B: raw[2],
@@ -416,14 +417,14 @@ func (ase *ase) parseOldPaletteChunk0x0004(raw []byte) {
 	}
 }
 
-func (ase *ase) initPalette() {
+func (a *ase) initPalette() {
 	var chunk0004 []byte
 	var chunk0011 []byte
 	found2019 := false
 
-	for _, ch := range ase.frames[0].chunks {
+	for _, ch := range a.frames[0].chunks {
 		if ch.typ == 0x2019 {
-			ase.parsePaletteChunk0x2019(ch.raw)
+			a.parsePaletteChunk0x2019(ch.raw)
 			found2019 = true
 			break
 		}
@@ -437,19 +438,19 @@ func (ase *ase) initPalette() {
 
 	if !found2019 {
 		if chunk0004 != nil {
-			ase.parseOldPaletteChunk0x0004(chunk0004)
+			a.parseOldPaletteChunk0x0004(chunk0004)
 		} else if chunk0011 != nil {
-			ase.parseOldPaletteChunk0x0011(chunk0011)
+			a.parseOldPaletteChunk0x0011(chunk0011)
 		}
 	}
 
-	if ase.flags&1 != 0 {
-		ase.palette[ase.transparent] = color.Transparent
+	if a.flags&1 != 0 {
+		a.palette[a.transparentPaletteIndex] = color.Transparent
 	}
 }
 
-func (ase *ase) initLayers() error {
-	chunks := ase.frames[0].chunks
+func (a *ase) initLayers() error {
+	chunks := a.frames[0].chunks
 	for i, ch := range chunks {
 		if ch.typ == 0x2004 {
 			var l Layer
@@ -459,36 +460,36 @@ func (ase *ase) initLayers() error {
 
 			if i < len(chunks)-1 {
 				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
-					data, col := ase.parseUserDataChunk0x2020(ch2.raw)
+					data, col := a.parseUserDataChunk0x2020(ch2.raw)
 					l.Text = string(data)
 					l.Color = col
 				}
 			}
 
-			ase.Layers = append(ase.Layers, l)
+			a.Layers = append(a.Layers, l)
 		}
 	}
 
-	nlayers := len(ase.Layers)
-	for i := range ase.frames {
-		ase.frames[i].cels = make([]cel, nlayers)
+	nlayers := len(a.Layers)
+	for i := range a.frames {
+		a.frames[i].cels = make([]cel, nlayers)
 	}
 
 	return nil
 }
 
-func (ase *ase) initCels() error {
-	for i := range ase.frames {
-		chunks := ase.frames[i].chunks
+func (a *ase) initCels() error {
+	for i := range a.frames {
+		chunks := a.frames[i].chunks
 		for j, ch := range chunks {
 			if ch.typ == 0x2005 {
-				cel, err := ase.parseCelChunk0x2005(i, ch.raw)
+				cel, err := a.parseCelChunk0x2005(i, ch.raw)
 				if err != nil {
 					return err
 				} else if cel != nil && j < (len(chunks)-1) {
 					// user data chunk
 					if ch2 := chunks[j+1]; ch2.typ == 0x2020 {
-						data, col := ase.parseUserDataChunk0x2020(ch2.raw)
+						data, col := a.parseUserDataChunk0x2020(ch2.raw)
 						cel.Text = string(data)
 						cel.Color = col
 					}
@@ -500,32 +501,32 @@ func (ase *ase) initCels() error {
 	return nil
 }
 
-func (ase *ase) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
-	var atlasr image.Rectangle
-	atlasr, framesr = makeAtlasFrames(len(ase.frames), ase.framew, ase.frameh)
+func (a *ase) buildAtlas() (atlas draw.Image) {
+	var atlasRect image.Rectangle
+	atlasRect, a.framesRects = makeAtlasFrames(len(a.frames), a.frameW, a.frameH)
 
-	switch ase.bpp {
+	switch a.bpp {
 	case 8:
-		atlas = image.NewPaletted(atlasr, ase.palette)
+		atlas = image.NewPaletted(atlasRect, a.palette)
 	case 16:
-		atlas = image.NewNRGBA(atlasr)
+		atlas = image.NewNRGBA(atlasRect)
 	default:
-		atlas = image.NewRGBA(atlasr)
+		atlas = image.NewRGBA(atlasRect)
 	}
 
-	framebounds := image.Rect(0, 0, ase.framew, ase.frameh)
-	ase.celBounds = make([]image.Rectangle, 0)
+	frameRect := image.Rect(0, 0, a.frameW, a.frameH)
+	a.celRects = make([]image.Rectangle, 0)
 
-	dstblend := image.NewRGBA(framebounds)
-	dst := image.NewRGBA(framebounds)
+	dstblend := image.NewRGBA(frameRect)
+	dst := image.NewRGBA(frameRect)
 
-	transparent := &image.Uniform{color.Transparent}
+	transparentImg := &image.Uniform{color.Transparent}
 
-	for i, fr := range ase.frames {
+	for i, fr := range a.frames {
 
 		var celRect image.Rectangle
 
-		draw.Draw(dst, framebounds, transparent, image.Point{}, draw.Src)
+		draw.Draw(dst, frameRect, transparentImg, image.Point{}, draw.Src)
 
 		for layerIndex, cel := range fr.cels {
 
@@ -543,15 +544,15 @@ func (ase *ase) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 			// Correction to avoid palette index errors if a color has been deleted from the Aseprite palette.
 			if imgPaletted, ok := src.(*image.Paletted); ok {
 				for i := range imgPaletted.Pix {
-					if int(imgPaletted.Pix[i]) >= len(ase.palette) {
+					if int(imgPaletted.Pix[i]) >= len(a.palette) {
 						// Assign a transparent index if the index is outside the palette range.
-						imgPaletted.Pix[i] = ase.transparent
+						imgPaletted.Pix[i] = a.transparentPaletteIndex
 					}
 				}
 			}
 
-			if mode := ase.Layers[layerIndex].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
-				draw.Draw(dstblend, framebounds, transparent, image.Point{}, draw.Src)
+			if mode := a.Layers[layerIndex].blendMode; mode > 0 && int(mode) < len(blend.Modes) {
+				draw.Draw(dstblend, frameRect, transparentImg, image.Point{}, draw.Src)
 				blend.Blend(dstblend, sr.Sub(sp), src, sp, dst, sp, blend.Modes[mode])
 				src = dstblend
 				sp = image.Point{}
@@ -559,23 +560,24 @@ func (ase *ase) buildAtlas() (atlas draw.Image, framesr []image.Rectangle) {
 			draw.DrawMask(dst, sr, src, sp, &cel.mask, image.Point{}, draw.Over)
 		}
 
-		ase.celBounds = append(ase.celBounds, celRect)
+		a.celRects = append(a.celRects, celRect)
 
-		draw.Draw(atlas, framesr[i], dst, image.Point{}, draw.Src)
+		draw.Draw(atlas, a.framesRects[i], dst, image.Point{}, draw.Src)
 	}
+
 	return
 }
 
-func (ase *ase) buildUserDataText() []byte {
+func (a *ase) buildUserDataText() []byte {
 	n := 0
 
-	for _, l := range ase.Layers {
+	for _, l := range a.Layers {
 		if l.flags&1 != 0 {
 			n += len(l.Text) // data -> Text
 		}
 	}
 
-	for _, fr := range ase.frames {
+	for _, fr := range a.frames {
 		for _, c := range fr.cels {
 			n += len(c.Text) // data -> Text
 		}
@@ -583,24 +585,27 @@ func (ase *ase) buildUserDataText() []byte {
 
 	return make([]byte, 0, n)
 }
-func (ase *ase) buildLayerUserData(userdata []byte) [][]byte {
-	ld := make([][]byte, 0, len(ase.Layers))
-	for _, l := range ase.Layers {
+func (a *ase) buildLayerUserDataText() [][]byte {
+
+	userdataText := a.buildUserDataText()
+
+	ld := make([][]byte, 0, len(a.Layers))
+	for _, l := range a.Layers {
 		if l.flags&1 != 0 && len(l.Text) > 0 {
-			ofs := len(userdata)
-			userdata = append(userdata, l.Text...)
-			ld = append(ld, userdata[ofs:])
+			ofs := len(userdataText)
+			userdataText = append(userdataText, l.Text...)
+			ld = append(ld, userdataText[ofs:])
 		}
 	}
 	return ld
 }
 
-func (ase *ase) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame, []byte) {
-	frames := make([]Frame, len(ase.frames))
+func (a *ase) buildFrames() []Frame {
+	frames := make([]Frame, len(a.frames))
 
-	for i, fr := range ase.frames {
+	for i, fr := range a.frames {
 		frames[i].Duration = fr.dur
-		frames[i].Bounds = framesr[i]
+		frames[i].Bounds = a.framesRects[i]
 		frameUserDatas := make([]UserData, 0, len(fr.cels))
 		for _, c := range fr.cels {
 			if c.Text != "" || c.Color != nil {
@@ -610,11 +615,15 @@ func (ase *ase) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame
 		frames[i].Layers = frameUserDatas
 	}
 
-	return frames, userdata
+	for i := range a.frames {
+		frames[i].CelBounds = a.celRects[i]
+	}
+
+	return frames
 }
 
-func (ase *ase) buildTags() []Tag {
-	chunks := ase.frames[0].chunks
+func (a *ase) buildTags() []Tag {
+	chunks := a.frames[0].chunks
 	for i, chunk := range chunks {
 		if chunk.typ == 0x2018 {
 			raw := chunk.raw
@@ -623,13 +632,13 @@ func (ase *ase) buildTags() []Tag {
 
 			ptr := raw[10:]
 			for j := range ntags {
-				ptr = ase.parseTagsChunk0x2018(&tags[j], ptr)
+				ptr = a.parseTagsChunk0x2018(&tags[j], ptr)
 			}
 
 			tagIdx := 0
 			for j := i + 1; j < len(chunks) && tagIdx < ntags; j++ {
 				if chunks[j].typ == 0x2020 {
-					data, col := ase.parseUserDataChunk0x2020(chunks[j].raw)
+					data, col := a.parseUserDataChunk0x2020(chunks[j].raw)
 					tags[tagIdx].UserData.Text = string(data)
 					tags[tagIdx].UserData.Color = col
 					tagIdx++
@@ -644,8 +653,8 @@ func (ase *ase) buildTags() []Tag {
 }
 
 // Slice Chunk (0x2022)
-func (ase *ase) buildSlices() (slices []Slice) {
-	chunks := ase.frames[0].chunks
+func (a *ase) buildSlices() (slices []Slice) {
+	chunks := a.frames[0].chunks
 	for i, chunk := range chunks {
 		if chunk.typ == 0x2022 {
 			ofs := len(slices)
@@ -665,7 +674,7 @@ func (ase *ase) buildSlices() (slices []Slice) {
 			for i := 0; len(raw) > 0 && i < nKeysForSlice; i++ {
 				frameIdx := int(binary.LittleEndian.Uint32(raw))
 				frameIndices = append(frameIndices, frameIdx)
-				raw = ase.parseSliceChunk0x2022(&s, flags, raw)
+				raw = a.parseSliceChunk0x2022(&s, flags, raw)
 			}
 
 			slices = append(slices, s)
@@ -673,7 +682,7 @@ func (ase *ase) buildSlices() (slices []Slice) {
 			// check for user data chunk (0x2020)
 			if i < len(chunks)-1 {
 				if ud := chunks[i+1]; ud.typ == 0x2020 {
-					data, col := ase.parseUserDataChunk0x2020(ud.raw)
+					data, col := a.parseUserDataChunk0x2020(ud.raw)
 					data = append([]byte{}, data...) // copy
 					for j := ofs; j < len(slices); j++ {
 						slices[j].UserData.Text = string(data)
@@ -681,7 +690,7 @@ func (ase *ase) buildSlices() (slices []Slice) {
 					}
 				}
 			}
-			expandSliceKey(&slices[len(slices)-1], len(ase.frames), frameIndices)
+			expandSliceKey(&slices[len(slices)-1], len(a.frames), frameIndices)
 		}
 	}
 
@@ -725,24 +734,25 @@ func parseColor(raw []byte) color.Color {
 	}
 }
 
-func makeAtlasFrames(nframes, framew, frameh int) (atlasr image.Rectangle, framesr []image.Rectangle) {
+func makeAtlasFrames(nFrames, frameW, frameH int) (image.Rectangle, []image.Rectangle) {
 
-	fw, fh := factorPowerOfTwo(nframes)
-	if framew > frameh {
+	fw, fh := factorPowerOfTwo(nFrames)
+	if frameW > frameH {
 		fw, fh = fh, fw
 	}
 
-	atlasr = image.Rect(0, 0, fw*framew, fh*frameh)
+	atlasRect := image.Rect(0, 0, fw*frameW, fh*frameH)
+	framesRects := make([]image.Rectangle, 0, nFrames)
 
-	for i := range nframes {
+	for i := range nFrames {
 		x, y := i%fw, i/fw
-		framesr = append(framesr, image.Rectangle{
-			Min: image.Pt(x*framew, y*frameh),
-			Max: image.Pt((x+1)*framew, (y+1)*frameh),
+		framesRects = append(framesRects, image.Rectangle{
+			Min: image.Pt(x*frameW, y*frameH),
+			Max: image.Pt((x+1)*frameW, (y+1)*frameH),
 		})
 	}
 
-	return
+	return atlasRect, framesRects
 }
 
 // factorPowerOfTwo computes n=a*b, where a, b are powers of two and a >= b.

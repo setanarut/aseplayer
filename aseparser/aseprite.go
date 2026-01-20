@@ -122,33 +122,27 @@ func (a *Aseprite) GetSliceImage(sliceName string, frameIndex uint16) image.Imag
 }
 
 func (a *Aseprite) readFrom(r io.Reader) error {
-	var f ase
+	var aseFile ase
 
-	if _, err := f.ReadFrom(r); err != nil {
+	if _, err := aseFile.ReadFrom(r); err != nil {
 		return err
 	}
 
-	f.initPalette()
+	aseFile.initPalette()
 
-	if err := f.initLayers(); err != nil {
+	if err := aseFile.initLayers(); err != nil {
 		return err
 	}
 
-	if err := f.initCels(); err != nil {
+	if err := aseFile.initCels(); err != nil {
 		return err
 	}
 
-	userdata := f.buildUserDataText()
-	var framesr []image.Rectangle
-	a.Image, framesr = f.buildAtlas()
-	a.Frames, userdata = f.buildFrames(framesr, userdata)
-	a.LayerData = f.buildLayerUserData(userdata)
-	a.Tags = f.buildTags()
-	a.Slices = f.buildSlices()
-
-	for i := range a.Frames {
-		a.Frames[i].CelBounds = f.celBounds[i]
-	}
+	a.Image = aseFile.buildAtlas()
+	a.Frames = aseFile.buildFrames()
+	a.LayerData = aseFile.buildLayerUserDataText()
+	a.Tags = aseFile.buildTags()
+	a.Slices = aseFile.buildSlices()
 
 	return nil
 }
