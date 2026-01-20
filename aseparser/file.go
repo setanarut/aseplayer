@@ -328,7 +328,6 @@ func (f *file) buildFrames(framesr []image.Rectangle, userdata []byte) ([]Frame,
 		}
 		frames[i].Layers = frameUserDatas
 	}
-	
 
 	return frames, userdata
 }

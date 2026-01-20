@@ -10,26 +10,57 @@ import (
 	"io"
 )
 
-func skipString(raw []byte) []byte {
-	n := binary.LittleEndian.Uint16(raw)
-	return raw[2+n:]
-}
+// Slice Chunk (0x2022)
+func (f *file) parseSliceChunk0x2022(s *Slice, flags uint32, raw []byte) []byte {
+	var key SliceFrame
 
-func parseString(raw []byte) string {
-	n := binary.LittleEndian.Uint16(raw)
-	return string(raw[2 : 2+n])
-}
+	x := int32(binary.LittleEndian.Uint32(raw[4:]))
+	y := int32(binary.LittleEndian.Uint32(raw[8:]))
+	w := binary.LittleEndian.Uint32(raw[12:])
+	h := binary.LittleEndian.Uint32(raw[16:])
+	raw = raw[20:]
 
-func parseColor(raw []byte) color.Color {
-	return color.NRGBA{
-		R: raw[0],
-		G: raw[1],
-		B: raw[2],
-		A: raw[3],
+	key.Bounds = image.Rect(int(x), int(y), int(x)+int(w), int(y)+int(h))
+
+	var cx, cy int32
+	var cw, ch uint32
+
+	if flags&1 != 0 {
+		cx = int32(binary.LittleEndian.Uint32(raw))
+		cy = int32(binary.LittleEndian.Uint32(raw[4:]))
+		cw = binary.LittleEndian.Uint32(raw[8:])
+		ch = binary.LittleEndian.Uint32(raw[12:])
+		raw = raw[16:]
+
+		key.Center = image.Rect(int(cx), int(cy), int(cx)+int(cw), int(cy)+int(ch))
 	}
+
+	var px, py int32
+
+	if flags&2 != 0 {
+		px = int32(binary.LittleEndian.Uint32(raw))
+		py = int32(binary.LittleEndian.Uint32(raw[4:]))
+		raw = raw[8:]
+		key.Pivot = image.Pt(int(px), int(py))
+	}
+
+	s.Frames = append(s.Frames, key)
+
+	return raw
 }
 
-func parseUserData(raw []byte) (data []byte, col color.Color) {
+// Tags Chunk (0x2018)
+func (f *file) parseTagsChunk0x2018(t *Tag, raw []byte) []byte {
+	t.Lo = binary.LittleEndian.Uint16(raw)
+	t.Hi = binary.LittleEndian.Uint16(raw[2:])
+	t.LoopDirection = LoopDirection(raw[4])
+	t.Repeat = binary.LittleEndian.Uint16(raw[5:])
+	t.Name = parseString(raw[17:])
+	return raw[19+len(t.Name):]
+}
+
+// User Data Chunk (0x2020)
+func (f *file) parseUserDataChunk0x2020(raw []byte) (data []byte, col color.Color) {
 	flags := binary.LittleEndian.Uint32(raw)
 	raw = raw[4:]
 
@@ -45,7 +76,8 @@ func parseUserData(raw []byte) (data []byte, col color.Color) {
 	return data, col
 }
 
-func (f *file) parseChunk2019(raw []byte) {
+// Palette Chunk (0x2019)
+func (f *file) parsePaletteChunk0x2019(raw []byte) {
 	entries := binary.LittleEndian.Uint32(raw[0:])
 	lo := binary.LittleEndian.Uint32(raw[4:])
 
@@ -62,8 +94,9 @@ func (f *file) parseChunk2019(raw []byte) {
 	}
 }
 
+// Old palette chunk (0x0011)
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0011
-func (f *file) parseChunk0011(raw []byte) {
+func (f *file) parseOldPaletteChunk0x0011(raw []byte) {
 	packets := binary.LittleEndian.Uint16(raw)
 	raw = raw[2:]
 
@@ -92,98 +125,8 @@ func (f *file) parseChunk0011(raw []byte) {
 	}
 }
 
-// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0004
-func (f *file) parseChunk0004(raw []byte) {
-	packets := binary.LittleEndian.Uint16(raw)
-	raw = raw[2:]
-
-	currentIndex := 0
-
-	for i := 0; i < int(packets); i++ {
-		skip := int(raw[0])
-		currentIndex += skip
-
-		n := int(raw[1])
-		if n == 0 {
-			n = 256
-		}
-		raw = raw[2:]
-
-		for j := 0; j < n && currentIndex < len(f.palette); j++ {
-			f.palette[currentIndex] = color.NRGBA{
-				R: raw[0],
-				G: raw[1],
-				B: raw[2],
-				A: 255,
-			}
-			raw = raw[3:]
-			currentIndex++
-		}
-	}
-}
-
-func (f *file) initPalette() {
-	var chunk0004 []byte
-	var chunk0011 []byte
-	found2019 := false
-
-	for _, ch := range f.frames[0].chunks {
-		if ch.typ == 0x2019 {
-			f.parseChunk2019(ch.raw)
-			found2019 = true
-			break
-		}
-		if ch.typ == 0x0004 {
-			chunk0004 = ch.raw
-		}
-		if ch.typ == 0x0011 {
-			chunk0011 = ch.raw
-		}
-	}
-
-	if !found2019 {
-		if chunk0004 != nil {
-			f.parseChunk0004(chunk0004)
-		} else if chunk0011 != nil {
-			f.parseChunk0011(chunk0011)
-		}
-	}
-
-	if f.flags&1 != 0 {
-		f.palette[f.transparent] = color.Transparent
-	}
-}
-
-func (f *file) initLayers() error {
-	chunks := f.frames[0].chunks
-	for i, ch := range chunks {
-		if ch.typ == 0x2004 {
-			var l Layer
-			if err := l.Parse(ch.raw); err != nil {
-				return err
-			}
-
-			if i < len(chunks)-1 {
-				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
-					data, col := parseUserData(ch2.raw)
-					l.Text = string(data)
-					l.Color = col
-				}
-			}
-
-			f.Layers = append(f.Layers, l)
-		}
-	}
-
-	nlayers := len(f.Layers)
-	for i := range f.frames {
-		f.frames[i].cels = make([]cel, nlayers)
-	}
-
-	return nil
-}
-
-func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
+// Cel Chunk (0x2005)
+func (f *file) parseCelChunk0x2005(frame int, raw []byte) (*cel, error) {
 	layer := binary.LittleEndian.Uint16(raw)
 	xpos := int(int16(binary.LittleEndian.Uint16(raw[2:])))
 	ypos := int(int16(binary.LittleEndian.Uint16(raw[4:])))
@@ -230,18 +173,110 @@ func (f *file) parseChunk2005(frame int, raw []byte) (*cel, error) {
 	return &f.frames[frame].cels[layer], nil
 }
 
+// Old palette chunk (0x0004)
+// https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md#old-palette-chunk-0x0004
+func (f *file) parseOldPaletteChunk0x0004(raw []byte) {
+	packets := binary.LittleEndian.Uint16(raw)
+	raw = raw[2:]
+
+	currentIndex := 0
+
+	for i := 0; i < int(packets); i++ {
+		skip := int(raw[0])
+		currentIndex += skip
+
+		n := int(raw[1])
+		if n == 0 {
+			n = 256
+		}
+		raw = raw[2:]
+
+		for j := 0; j < n && currentIndex < len(f.palette); j++ {
+			f.palette[currentIndex] = color.NRGBA{
+				R: raw[0],
+				G: raw[1],
+				B: raw[2],
+				A: 255,
+			}
+			raw = raw[3:]
+			currentIndex++
+		}
+	}
+}
+
+func (f *file) initPalette() {
+	var chunk0004 []byte
+	var chunk0011 []byte
+	found2019 := false
+
+	for _, ch := range f.frames[0].chunks {
+		if ch.typ == 0x2019 {
+			f.parsePaletteChunk0x2019(ch.raw)
+			found2019 = true
+			break
+		}
+		if ch.typ == 0x0004 {
+			chunk0004 = ch.raw
+		}
+		if ch.typ == 0x0011 {
+			chunk0011 = ch.raw
+		}
+	}
+
+	if !found2019 {
+		if chunk0004 != nil {
+			f.parseOldPaletteChunk0x0004(chunk0004)
+		} else if chunk0011 != nil {
+			f.parseOldPaletteChunk0x0011(chunk0011)
+		}
+	}
+
+	if f.flags&1 != 0 {
+		f.palette[f.transparent] = color.Transparent
+	}
+}
+
+func (f *file) initLayers() error {
+	chunks := f.frames[0].chunks
+	for i, ch := range chunks {
+		if ch.typ == 0x2004 {
+			var l Layer
+			if err := l.Parse(ch.raw); err != nil {
+				return err
+			}
+
+			if i < len(chunks)-1 {
+				if ch2 := chunks[i+1]; ch2.typ == 0x2020 {
+					data, col := f.parseUserDataChunk0x2020(ch2.raw)
+					l.Text = string(data)
+					l.Color = col
+				}
+			}
+
+			f.Layers = append(f.Layers, l)
+		}
+	}
+
+	nlayers := len(f.Layers)
+	for i := range f.frames {
+		f.frames[i].cels = make([]cel, nlayers)
+	}
+
+	return nil
+}
+
 func (f *file) initCels() error {
 	for i := range f.frames {
 		chunks := f.frames[i].chunks
 		for j, ch := range chunks {
 			if ch.typ == 0x2005 {
-				cel, err := f.parseChunk2005(i, ch.raw)
+				cel, err := f.parseCelChunk0x2005(i, ch.raw)
 				if err != nil {
 					return err
 				} else if cel != nil && j < (len(chunks)-1) {
 					// user data chunk
 					if ch2 := chunks[j+1]; ch2.typ == 0x2020 {
-						data, col := parseUserData(ch2.raw)
+						data, col := f.parseUserDataChunk0x2020(ch2.raw)
 						cel.Text = string(data)
 						cel.Color = col
 					}
@@ -253,15 +288,6 @@ func (f *file) initCels() error {
 	return nil
 }
 
-func parseTag(t *Tag, raw []byte) []byte {
-	t.Lo = binary.LittleEndian.Uint16(raw)
-	t.Hi = binary.LittleEndian.Uint16(raw[2:])
-	t.LoopDirection = LoopDirection(raw[4])
-	t.Repeat = binary.LittleEndian.Uint16(raw[5:])
-	t.Name = parseString(raw[17:])
-	return raw[19+len(t.Name):]
-}
-
 func (f *file) buildTags() []Tag {
 	chunks := f.frames[0].chunks
 	for i, chunk := range chunks {
@@ -271,14 +297,14 @@ func (f *file) buildTags() []Tag {
 			tags := make([]Tag, ntags)
 
 			ptr := raw[10:]
-			for j := 0; j < ntags; j++ {
-				ptr = parseTag(&tags[j], ptr)
+			for j := range ntags {
+				ptr = f.parseTagsChunk0x2018(&tags[j], ptr)
 			}
 
 			tagIdx := 0
 			for j := i + 1; j < len(chunks) && tagIdx < ntags; j++ {
 				if chunks[j].typ == 0x2020 {
-					data, col := parseUserData(chunks[j].raw)
+					data, col := f.parseUserDataChunk0x2020(chunks[j].raw)
 					tags[tagIdx].UserData.Text = string(data)
 					tags[tagIdx].UserData.Color = col
 					tagIdx++
@@ -292,44 +318,7 @@ func (f *file) buildTags() []Tag {
 	return nil
 }
 
-func parseSlice(s *Slice, flags uint32, raw []byte) []byte {
-	var key SliceFrame
-
-	x := int32(binary.LittleEndian.Uint32(raw[4:]))
-	y := int32(binary.LittleEndian.Uint32(raw[8:]))
-	w := binary.LittleEndian.Uint32(raw[12:])
-	h := binary.LittleEndian.Uint32(raw[16:])
-	raw = raw[20:]
-
-	key.Bounds = image.Rect(int(x), int(y), int(x)+int(w), int(y)+int(h))
-
-	var cx, cy int32
-	var cw, ch uint32
-
-	if flags&1 != 0 {
-		cx = int32(binary.LittleEndian.Uint32(raw))
-		cy = int32(binary.LittleEndian.Uint32(raw[4:]))
-		cw = binary.LittleEndian.Uint32(raw[8:])
-		ch = binary.LittleEndian.Uint32(raw[12:])
-		raw = raw[16:]
-
-		key.Center = image.Rect(int(cx), int(cy), int(cx)+int(cw), int(cy)+int(ch))
-	}
-
-	var px, py int32
-
-	if flags&2 != 0 {
-		px = int32(binary.LittleEndian.Uint32(raw))
-		py = int32(binary.LittleEndian.Uint32(raw[4:]))
-		raw = raw[8:]
-		key.Pivot = image.Pt(int(px), int(py))
-	}
-
-	s.Frames = append(s.Frames, key)
-
-	return raw
-}
-
+// Slice Chunk (0x2022)
 func (f *file) buildSlices() (slices []Slice) {
 	chunks := f.frames[0].chunks
 	for i, chunk := range chunks {
@@ -351,15 +340,15 @@ func (f *file) buildSlices() (slices []Slice) {
 			for i := 0; len(raw) > 0 && i < nKeysForSlice; i++ {
 				frameIdx := int(binary.LittleEndian.Uint32(raw))
 				frameIndices = append(frameIndices, frameIdx)
-				raw = parseSlice(&s, flags, raw)
+				raw = f.parseSliceChunk0x2022(&s, flags, raw)
 			}
 
 			slices = append(slices, s)
 
-			// check for user data chunk
+			// check for user data chunk (0x2020)
 			if i < len(chunks)-1 {
 				if ud := chunks[i+1]; ud.typ == 0x2020 {
-					data, col := parseUserData(ud.raw)
+					data, col := f.parseUserDataChunk0x2020(ud.raw)
 					data = append([]byte{}, data...) // copy
 					for j := ofs; j < len(slices); j++ {
 						slices[j].UserData.Text = string(data)
@@ -390,4 +379,23 @@ func expandSliceKey(slice *Slice, lenFrames int, frameIndices []int) {
 		expandedKeys[frameIdx] = current
 	}
 	slice.Frames = expandedKeys
+}
+
+func skipString(raw []byte) []byte {
+	n := binary.LittleEndian.Uint16(raw)
+	return raw[2+n:]
+}
+
+func parseString(raw []byte) string {
+	n := binary.LittleEndian.Uint16(raw)
+	return string(raw[2 : 2+n])
+}
+
+func parseColor(raw []byte) color.Color {
+	return color.NRGBA{
+		R: raw[0],
+		G: raw[1],
+		B: raw[2],
+		A: raw[3],
+	}
 }
