@@ -1,6 +1,4 @@
-## Tags
-
-### Chunk Types
+# Chunk Types
 
 - [x] Old palette chunk (0x0004)
 - [x] Old palette chunk (0x0011)
