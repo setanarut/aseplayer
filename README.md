@@ -21,7 +21,7 @@ Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Anima
 
 <img width="432" height="154" alt="tags" src="https://github.com/user-attachments/assets/1b657dd9-a335-4d72-9f3c-697f281d4af3" />
 
-## Playing tags
+### Playing tags
 
 To play multiple animation tags simultaneously, use a shallow copy of `AnimPlayer`. It will share the same animations. Update each `AnimPlayer` with `Update()` and draw it with `Draw()`.
 
@@ -35,10 +35,9 @@ bird2.Play("fly")
 bird3.Play("walk")
 ```
 
+### Tag properties
 
-## Tag properties
-
-### Animation Directions
+#### Animation Directions
 
 AsePlayer supports three Animation Directions: `Forward`, `Reverse`, and `Ping-pong`.
 
@@ -46,7 +45,7 @@ AsePlayer supports three Animation Directions: `Forward`, `Reverse`, and `Ping-p
 > [!NOTE]  
 > For **Ping-Pong** and **Reverse** playback, the `[]Frame` is specifically manipulated. For **Ping-Pong**, the number of frames will be greater than the Aseprite range. `[0 1 2 3] -> [0 1 2 3 2 1]`. **Reverse** is an reversed `[]Frame`.
 
-### Repeat
+#### Repeat
 
 **AsePlayer** supports the **Repeat** property; `Animation.Repeat = 0` means infinite loop.
 
@@ -55,7 +54,7 @@ AsePlayer supports three Animation Directions: `Forward`, `Reverse`, and `Ping-p
 g.animPlayer.Animations["turn"].Repeat = 1
 ```
 
-### UserData
+#### UserData
 
 Text field of Aseprite Tag's User Data. It is useful for data transfer. It can be automated with Aseprite Lua scripting. https://www.aseprite.org/api/tag#tagdata
 
