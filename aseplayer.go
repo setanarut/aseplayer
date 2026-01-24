@@ -20,7 +20,7 @@ const (
 	Default CropMode = iota
 
 	// If the Timeline tag and Slice names are the same, the animation frames are cropped according to the Slice boundaries.
-	// Frame.Pivot is the pivot of the Slice.
+	// Frame.Pivot is the pivot of the Slice. Do not use with sub-tags. Sub-tags always inherit the parent tag slice size.
 	//
 	// It is the position relative to the top-left corner of the Slice boundaries.
 	//
@@ -127,7 +127,6 @@ func (a *AnimPlayer) Rewind() {
 const animPlayerFormatString string = `Repeat count: %v
 Ended: %v
 Index: %v
-Frame elapsed: %v
 Paused: %v
 --- Animation ---
 %v
@@ -138,7 +137,6 @@ func (a *AnimPlayer) String() string {
 		a.repeatCount,
 		a.IsEnded(),
 		a.frameIndex,
-		a.frameElapsedTime,
 		a.Paused,
 		a.CurrentAnimation,
 	)
@@ -222,6 +220,8 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 		Animations: make(map[string]*Animation),
 	}
 
+	imageCache := make(map[uint16]*ebiten.Image)
+
 	var sliceIndex int
 
 	for _, tag := range ase.Tags {
@@ -264,8 +264,16 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 				}
 			}
 
-			atlasSubImage := ase.Image.(subImager).SubImage(frameBounds)
-			frames[frameIdx].Image = ebiten.NewImageFromImage(atlasSubImage)
+			if cachedImage, exists := imageCache[i]; exists {
+				// shallow copy of sub tag image
+				frames[frameIdx].Image = cachedImage
+			} else {
+				atlasSubImage := ase.Image.(subImager).SubImage(frameBounds)
+				newImage := ebiten.NewImageFromImage(atlasSubImage)
+				imageCache[i] = newImage
+				frames[frameIdx].Image = newImage
+			}
+
 			frames[frameIdx].Duration = ase.Frames[i].Duration
 			frameIdx++
 		}
