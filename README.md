@@ -7,11 +7,34 @@ Aseprite animation player for Ebitengine.
 > [!NOTE]  
 > Layers are flattened, blending modes are applied, invisible and reference layers are ignored.
 
+## Parsing Aseprite file
+
+There are three read modes for frame's image boundaries: `Default`, `Slices`, and `Trim`.
+
+```Go
+fly = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase", aseplayer.Trim)
+```
+
 ## Tags
 
 Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Animation{}` struct and is ready to play.
 
-<img width="655" height="155" alt="Tags" src="https://github.com/user-attachments/assets/be21a4af-451f-4e02-b457-88d1d29123ab" />
+<img width="432" height="154" alt="tags" src="https://github.com/user-attachments/assets/1b657dd9-a335-4d72-9f3c-697f281d4af3" />
+
+## Playing tags
+
+To play multiple animation tags simultaneously, use a shallow copy of `AnimPlayer`. It will share the same animations. Update each `AnimPlayer` with `Update()` and draw it with `Draw()`.
+
+```Go
+bird1 = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase", aseplayer.Default)
+bird2 = *bird1
+bird3 = *bird1
+
+bird1.Play("fly")
+bird2.Play("fly")
+bird3.Play("walk")
+```
+
 
 ## Tag properties
 
@@ -21,7 +44,7 @@ AsePlayer supports three Animation Directions: `Forward`, `Reverse`, and `Ping-p
 
 
 > [!NOTE]  
-> For **Ping-Pong** and **Reverse** playback, the `[]*Frame` is specifically manipulated. For **Ping-Pong**, the number of frames will be greater than the Aseprite range. `[0 1 2 3] -> [0 1 2 3 2 1]`. **Reverse** is an reversed `[]*Frame`.
+> For **Ping-Pong** and **Reverse** playback, the `[]Frame` is specifically manipulated. For **Ping-Pong**, the number of frames will be greater than the Aseprite range. `[0 1 2 3] -> [0 1 2 3 2 1]`. **Reverse** is an reversed `[]Frame`.
 
 ### Repeat
 
