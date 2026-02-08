@@ -5,21 +5,20 @@
 Aseprite animation player for Ebitengine. 
 
 > [!NOTE]  
-> Layers are flattened, blending modes are applied, invisible and reference layers are ignored.
+> Only the topmost visible layer is considered. Others are ignored..
 
 ## Parsing Aseprite file
 
 There are three read modes for frame's image boundaries: `Default`, `Slices`, and `Trim`.
 
 ```Go
-fly = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase", aseplayer.Trim)
+fly = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase")
 ```
+
 
 ## Tags
 
 Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Animation{}` struct and is ready to play.
-
-<img width="432" height="154" alt="tags" src="https://github.com/user-attachments/assets/1b657dd9-a335-4d72-9f3c-697f281d4af3" />
 
 ### Playing tags
 

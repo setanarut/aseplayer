@@ -12,8 +12,8 @@ github.com/setanarut/aseprite v1.3.0 h1:v+doYi4syQ7zMd7g7PyqXLfzB3XkVonoQiq6vMWu
 github.com/setanarut/aseprite v1.3.0/go.mod h1:wqFmlgmldkQqbCZ+ekze/PEfWNPMouYl5uomrwifYJw=
 github.com/setanarut/v v1.2.2 h1:oeivVtCk9OLkVAMpxwWqJN9XR6+8asQ/DXepQ0Y3rNs=
 github.com/setanarut/v v1.2.2/go.mod h1:/EX95JGm9AilgfEaFCYlOz95IqJGVfCt/7r2i1rNRbw=
-golang.org/x/image v0.31.0 h1:mLChjE2MV6g1S7oqbXC0/UcKijjm5fnJLUYKIYrLESA=
-golang.org/x/image v0.31.0/go.mod h1:R9ec5Lcp96v9FTF+ajwaH3uGxPH4fKfHHAVbUILxghA=
+golang.org/x/image v0.35.0 h1:LKjiHdgMtO8z7Fh18nGY6KDcoEtVfsgLDPeLyguqb7I=
+golang.org/x/image v0.35.0/go.mod h1:MwPLTVgvxSASsxdLzKrl8BRFuyqMyGhLwmC+TO1Sybk=
 golang.org/x/sync v0.17.0 h1:l60nONMj9l5drqw6jlhIELNv9I0A4OFgRsG9k2oT9Ug=
 golang.org/x/sync v0.17.0/go.mod h1:9KTHXmSnoGruLpwFjVSX0lNNA75CykiMECbovNTZqGI=
 golang.org/x/sys v0.36.0 h1:KVRy2GtZBrk1cBYA7MKu5bEZFxQk4NIDV6RLVcC8o0k=

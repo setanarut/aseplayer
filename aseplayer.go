@@ -8,29 +8,8 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/setanarut/aseplayer/aseparser"
+	"github.com/setanarut/aseprite"
 	"github.com/setanarut/v"
-)
-
-type CropMode int
-
-const (
-
-	// All animation frames will be the same size as the canvas. Pivots are zero.
-	Default CropMode = iota
-
-	// If the Timeline tag and Slice names are the same, the animation frames are cropped according to the Slice boundaries.
-	// Frame.Pivot is the pivot of the Slice. Do not use with sub-tags. Sub-tags always inherit the parent tag slice size.
-	//
-	// It is the position relative to the top-left corner of the Slice boundaries.
-	//
-	// https://www.aseprite.org/docs/slices#slices
-	Slices
-
-	// All cel images will be trimmed (removes the transparent edges). Frame.Pivot specifies the position on the Aseprite canvas (cel.position). Slices are ignored.
-	//
-	// https://www.aseprite.org/api/cel#celposition
-	Trim
 )
 
 const Delta = time.Second / 60
@@ -44,7 +23,7 @@ type AnimPlayer struct {
 	// The frame of the animation currently being played.
 	//
 	// Example:
-	//	dio.GeoM.Translate(-animPlayer.CurrentFrame.Pivot.X, -animPlayer.CurrentFrame.Pivot.Y)
+	//	dio.GeoM.Translate(animPlayer.CurrentFrame.Position.X, animPlayer.CurrentFrame.Position.Y)
 	//	dio.GeoM.Translate(x, y)
 	//	screen.DrawImage(g.animPlayer.CurrentFrame.Image, dio)
 	CurrentFrame *Frame
@@ -176,9 +155,9 @@ type Animation struct {
 
 type Frame struct {
 	*ebiten.Image
-	// Pivot taken from Aseprite's Slice. A point in Frame.Image.Bounds().
-	Pivot v.Vec
-	// Frame duration from the Aseprite file
+	// Position represents the Cel's top-left coordinates relative to the Aseprite canvas.
+	Position v.Vec
+	// Duration of the frame as defined in the Aseprite file.
 	Duration time.Duration
 }
 
@@ -187,10 +166,9 @@ type Frame struct {
 // The first Aseprite tag is automatically set as the current animation.
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, mode CropMode) *AnimPlayer {
-	ase := aseparser.NewAsepriteFromFileSystem(fs, asePath)
-	ap := animPlayerfromAseprite(ase, mode)
-	ase = nil
+func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
+	ase, _ := aseprite.ReadFs(fs, asePath)
+	ap := animPlayerfromAseprite(&ase)
 	return ap
 }
 
@@ -199,18 +177,15 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string, mode CropMode
 // The first Aseprite tag is automatically set as the current animation.
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFile(asePath string, mode CropMode) *AnimPlayer {
-	ase := aseparser.NewAsepriteFromFile(asePath)
-	ap := animPlayerfromAseprite(ase, mode)
-	ase = nil
+func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
+	ase, _ := aseprite.Read(asePath)
+	ap := animPlayerfromAseprite(&ase)
 	return ap
 }
 
-func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPlayer) {
+func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer) {
 
-	if mode > 2 {
-		panic("Unsupported CropMode!")
-	}
+	TopmostVisibleLayerIndex := len(ase.Layers) - 1
 
 	if len(ase.Tags) == 0 {
 		panic("The Aseprite file does not have a tag.")
@@ -221,8 +196,6 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 	}
 
 	imageCache := make(map[uint16]*ebiten.Image)
-
-	var sliceIndex int
 
 	for _, tag := range ase.Tags {
 
@@ -235,61 +208,42 @@ func animPlayerfromAseprite(ase *aseparser.Aseprite, mode CropMode) (ap *AnimPla
 		tagLen := tag.Hi - tag.Lo + 1
 		frames := make([]Frame, 0, tagLen)
 
-		if mode == Slices {
-			sliceIndex = slices.IndexFunc(ase.Slices, func(e aseparser.Slice) bool {
-				return e.Name == tag.Name
-			})
-		}
-
 		frameIdx := 0
 		for i := tag.Lo; i <= tag.Hi; i++ {
 			frames = append(frames, Frame{})
 
-			frameBounds := ase.Frames[i].Bounds
-
-			switch mode {
-			case Slices:
-				if sliceIndex != -1 {
-					frameBounds = ase.Slices[sliceIndex].Frames[i].Bounds.Add(frameBounds.Min)
-					frames[frameIdx].Pivot = v.Vec{
-						X: float64(ase.Slices[sliceIndex].Frames[i].Pivot.X),
-						Y: float64(ase.Slices[sliceIndex].Frames[i].Pivot.Y),
-					}
-				}
-			case Trim:
-				frameBounds = ase.Frames[i].CelBounds.Add(ase.Frames[i].Bounds.Min)
-				frames[frameIdx].Pivot = v.Vec{
-					X: float64(ase.Frames[i].CelBounds.Min.X),
-					Y: float64(ase.Frames[i].CelBounds.Min.Y),
-				}
+			pivot := ase.Frames[i].Cels[TopmostVisibleLayerIndex].Image.Bounds().Min
+			frames[frameIdx].Position = v.Vec{
+				X: float64(pivot.X),
+				Y: float64(pivot.Y),
 			}
-
 			if cachedImage, exists := imageCache[i]; exists {
 				// shallow copy of sub tag image
 				frames[frameIdx].Image = cachedImage
 			} else {
-				atlasSubImage := ase.Image.(subImager).SubImage(frameBounds)
-				newImage := ebiten.NewImageFromImage(atlasSubImage)
+				newImage := ebiten.NewImageFromImage(ase.Frames[i].Cels[TopmostVisibleLayerIndex].Image)
 				imageCache[i] = newImage
 				frames[frameIdx].Image = newImage
 			}
 
-			frames[frameIdx].Duration = ase.Frames[i].Duration
+			frames[frameIdx].Duration = ase.Frames[i].Dur
 			frameIdx++
 		}
 
 		switch tag.LoopDirection {
-		case aseparser.PingPong:
+		// pingpong
+		case 2:
 			for i := len(frames) - 2; i > 0; i-- {
 				originalFrame := frames[i]
 				frameCopy := Frame{
 					Image:    originalFrame.Image,
-					Pivot:    originalFrame.Pivot,
+					Position: originalFrame.Position,
 					Duration: originalFrame.Duration,
 				}
 				frames = append(frames, frameCopy)
 			}
-		case aseparser.Reverse:
+		// reverse
+		case 1:
 			slices.Reverse(frames)
 		}
 

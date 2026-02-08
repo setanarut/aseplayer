@@ -15,7 +15,7 @@ const (
 var ase *AnimPlayer
 
 func TestMain(m *testing.M) {
-	ase = NewAnimPlayerFromAsepriteFile("testfiles/bird.ase", Trim)
+	ase = NewAnimPlayerFromAsepriteFile("testfiles/bird.ase")
 	exitCode := m.Run()
 	os.Exit(exitCode)
 }
