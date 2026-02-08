@@ -9,8 +9,6 @@ Aseprite animation player for Ebitengine.
 
 ## Parsing Aseprite file
 
-There are three read modes for frame's image boundaries: `Default`, `Slices`, and `Trim`.
-
 ```Go
 fly = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase")
 ```
