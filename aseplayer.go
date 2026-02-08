@@ -1,6 +1,7 @@
 package aseplayer
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"io/fs"
@@ -166,10 +167,12 @@ type Frame struct {
 // The first Aseprite tag is automatically set as the current animation.
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
-	ase, _ := aseprite.ReadFs(fs, asePath)
-	ap := animPlayerfromAseprite(&ase)
-	return ap
+func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) (ap *AnimPlayer, err error) {
+	ase, err := aseprite.ReadFs(fs, asePath)
+	if err != nil {
+		return nil, err
+	}
+	return animPlayerfromAseprite(&ase)
 }
 
 // NewAnimPlayerFromAsepriteFile creates an AnimPlayer from an Aseprite file.
@@ -177,18 +180,20 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) *AnimPlayer {
 // The first Aseprite tag is automatically set as the current animation.
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
-func NewAnimPlayerFromAsepriteFile(asePath string) *AnimPlayer {
-	ase, _ := aseprite.Read(asePath)
-	ap := animPlayerfromAseprite(&ase)
-	return ap
+func NewAnimPlayerFromAsepriteFile(asePath string) (ap *AnimPlayer, err error) {
+	ase, err := aseprite.Read(asePath)
+	if err != nil {
+		return nil, err
+	}
+	return animPlayerfromAseprite(&ase)
 }
 
-func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer) {
+func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 
 	TopmostVisibleLayerIndex := len(ase.Layers) - 1
 
 	if len(ase.Tags) == 0 {
-		panic("The Aseprite file does not have a tag.")
+		return nil, errors.New("the Aseprite file does not have a tag")
 	}
 
 	ap = &AnimPlayer{
@@ -205,11 +210,11 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer) {
 			UserData: tag.UserData.Text,
 		}
 
-		tagLen := tag.Hi - tag.Lo + 1
+		tagLen := tag.End - tag.Start + 1
 		frames := make([]Frame, 0, tagLen)
 
 		frameIdx := 0
-		for i := tag.Lo; i <= tag.Hi; i++ {
+		for i := tag.Start; i <= tag.End; i++ {
 			frames = append(frames, Frame{})
 
 			pivot := ase.Frames[i].Cels[TopmostVisibleLayerIndex].Image.Bounds().Min
@@ -226,7 +231,7 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer) {
 				frames[frameIdx].Image = newImage
 			}
 
-			frames[frameIdx].Duration = ase.Frames[i].Dur
+			frames[frameIdx].Duration = ase.Frames[i].Duration
 			frameIdx++
 		}
 

@@ -39,7 +39,11 @@ type Game struct {
 
 func (g *Game) Init() {
 
-	g.fly = *aseplayer.NewAnimPlayerFromAsepriteFile("../../testfiles/bird.ase")
+	ap, err := aseplayer.NewAnimPlayerFromAsepriteFile("../../testfiles/bird.ase")
+	if err != nil {
+		log.Fatal(err)
+	}
+	g.fly = *ap
 
 	// See the testfiles/userdata_pivots.lua and testfiles/bird.ase files.
 	ParseUserDataPivots(&g.fly)
