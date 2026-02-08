@@ -10,7 +10,7 @@ Aseprite animation player for Ebitengine.
 ## Parsing Aseprite file
 
 ```Go
-fly = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase")
+fly, _ = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase")
 ```
 
 
@@ -23,7 +23,7 @@ Each Aseprite [Tag](https://www.aseprite.org/docs/tags) is imported as an `Anima
 To play multiple animation tags simultaneously, use a shallow copy of `AnimPlayer`. It will share the same animations. Update each `AnimPlayer` with `Update()` and draw it with `Draw()`.
 
 ```Go
-bird1 = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase", aseplayer.Default)
+bird1, _ = aseplayer.NewAnimPlayerFromAsepriteFile("bird.ase", aseplayer.Default)
 bird2 = *bird1
 bird3 = *bird1
 
