@@ -168,7 +168,7 @@ type Frame struct {
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
 func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) (ap *AnimPlayer, err error) {
-	ase, err := aseprite.ReadFs(fs, asePath)
+	ase, err := aseprite.ReadFs(fs, asePath, true)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func NewAnimPlayerFromAsepriteFileSystem(fs fs.FS, asePath string) (ap *AnimPlay
 //
 // The Aseprite file must contain at least one tag, otherwise an error will occur.
 func NewAnimPlayerFromAsepriteFile(asePath string) (ap *AnimPlayer, err error) {
-	ase, err := aseprite.Read(asePath)
+	ase, err := aseprite.Read(asePath, true)
 	if err != nil {
 		return nil, err
 	}
