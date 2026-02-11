@@ -190,7 +190,7 @@ func NewAnimPlayerFromAsepriteFile(asePath string) (ap *AnimPlayer, err error) {
 
 func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 
-	TopmostVisibleLayerIndex := len(ase.Layers) - 1
+	topVisibleLayer := len(ase.Layers) - 1
 
 	if len(ase.Tags) == 0 {
 		return nil, errors.New("the Aseprite file does not have a tag")
@@ -200,7 +200,7 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 		Animations: make(map[string]*Animation),
 	}
 
-	imageCache := make(map[uint16]*ebiten.Image)
+	imageCache := make(map[int]*ebiten.Image)
 
 	for _, tag := range ase.Tags {
 
@@ -217,16 +217,17 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 		for i := tag.Start; i <= tag.End; i++ {
 			frames = append(frames, Frame{})
 
-			pivot := ase.Layers[TopmostVisibleLayerIndex].Cels[i].Pos
+			pivot := ase.Layers[topVisibleLayer].Cel(i).Pos
 			frames[frameIdx].Position = v.Vec{
 				X: float64(pivot.X),
 				Y: float64(pivot.Y),
 			}
+
 			if cachedImage, exists := imageCache[i]; exists {
 				// shallow copy of sub tag image
 				frames[frameIdx].Image = cachedImage
 			} else {
-				img := ase.Layers[TopmostVisibleLayerIndex].Cels[i].Image
+				img := ase.Layers[topVisibleLayer].Cel(i).Image
 				newImage := ebiten.NewImageFromImage(img)
 				imageCache[i] = newImage
 				frames[frameIdx].Image = newImage
