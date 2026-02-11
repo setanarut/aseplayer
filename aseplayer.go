@@ -217,7 +217,7 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 		for i := tag.Start; i <= tag.End; i++ {
 			frames = append(frames, Frame{})
 
-			pivot := ase.Frames[i].Cels[TopmostVisibleLayerIndex].Image.Bounds().Min
+			pivot := ase.Layers[TopmostVisibleLayerIndex].Cels[i].Pos
 			frames[frameIdx].Position = v.Vec{
 				X: float64(pivot.X),
 				Y: float64(pivot.Y),
@@ -226,7 +226,8 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 				// shallow copy of sub tag image
 				frames[frameIdx].Image = cachedImage
 			} else {
-				newImage := ebiten.NewImageFromImage(ase.Frames[i].Cels[TopmostVisibleLayerIndex].Image)
+				img := ase.Layers[TopmostVisibleLayerIndex].Cels[i].Image
+				newImage := ebiten.NewImageFromImage(img)
 				imageCache[i] = newImage
 				frames[frameIdx].Image = newImage
 			}
