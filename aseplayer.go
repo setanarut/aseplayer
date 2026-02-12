@@ -233,7 +233,7 @@ func animPlayerfromAseprite(ase *aseprite.Ase) (ap *AnimPlayer, err error) {
 				frames[frameIdx].Image = newImage
 			}
 
-			frames[frameIdx].Duration = ase.Frames[i].Duration
+			frames[frameIdx].Duration = ase.Durations[i]
 			frameIdx++
 		}
 
